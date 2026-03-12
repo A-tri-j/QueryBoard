@@ -1,0 +1,153 @@
+'use client'
+
+import { useState } from 'react'
+import { useQueryStore, type QueryHistoryItem } from '@/lib/store'
+import { 
+  BarChart3, 
+  LineChart, 
+  PieChart, 
+  ScatterChart,
+  ChevronLeft,
+  ChevronRight,
+  Database,
+  History
+} from 'lucide-react'
+
+const chartIcons = {
+  bar: BarChart3,
+  line: LineChart,
+  pie: PieChart,
+  scatter: ScatterChart
+}
+
+export function Sidebar() {
+  const [collapsed, setCollapsed] = useState(false)
+  const { queryHistory, selectHistoryItem, status } = useQueryStore()
+
+  return (
+    <aside 
+      className={`
+        fixed left-0 top-0 h-screen bg-sidebar border-r border-sidebar-border
+        flex flex-col transition-all duration-300 z-50
+        ${collapsed ? 'w-16' : 'w-72'}
+      `}
+    >
+      {/* Logo */}
+      <div className="flex items-center justify-between p-4 border-b border-sidebar-border">
+        {!collapsed && (
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+              <BarChart3 className="w-5 h-5 text-primary-foreground" />
+            </div>
+            <span className="font-bold text-lg text-foreground">QueryBoard</span>
+          </div>
+        )}
+        {collapsed && (
+          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center mx-auto">
+            <BarChart3 className="w-5 h-5 text-primary-foreground" />
+          </div>
+        )}
+        <button 
+          onClick={() => setCollapsed(!collapsed)}
+          className="p-1 hover:bg-sidebar-accent rounded-md transition-colors text-muted-foreground hover:text-foreground"
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+        </button>
+      </div>
+
+      {/* Dataset Info */}
+      <div className="p-4 border-b border-sidebar-border">
+        <div className="flex items-center gap-2 mb-3">
+          <Database className="w-4 h-4 text-primary" />
+          {!collapsed && <span className="text-sm font-medium text-foreground">Dataset</span>}
+        </div>
+        {!collapsed && (
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">File</span>
+              <span className="font-mono text-foreground">customer_data.csv</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Rows</span>
+              <span className="font-mono text-primary">11,791</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Columns</span>
+              <span className="font-mono text-primary">8</span>
+            </div>
+          </div>
+        )}
+        {collapsed && (
+          <div className="text-center">
+            <span className="font-mono text-xs text-primary">11.7K</span>
+          </div>
+        )}
+      </div>
+
+      {/* Query History */}
+      <div className="flex-1 p-4 overflow-y-auto">
+        <div className="flex items-center gap-2 mb-3">
+          <History className="w-4 h-4 text-primary" />
+          {!collapsed && <span className="text-sm font-medium text-foreground">Recent Queries</span>}
+        </div>
+        
+        {queryHistory.length === 0 ? (
+          !collapsed && (
+            <p className="text-sm text-muted-foreground italic">No queries yet</p>
+          )
+        ) : (
+          <div className="space-y-2">
+            {queryHistory.map((item, index) => (
+              <HistoryItem 
+                key={`${item.query}-${index}`}
+                item={item}
+                collapsed={collapsed}
+                onClick={() => status !== 'loading' && selectHistoryItem(item.query)}
+                disabled={status === 'loading'}
+                index={index}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </aside>
+  )
+}
+
+function HistoryItem({ 
+  item, 
+  collapsed, 
+  onClick, 
+  disabled,
+  index 
+}: { 
+  item: QueryHistoryItem
+  collapsed: boolean
+  onClick: () => void
+  disabled: boolean
+  index: number
+}) {
+  const Icon = chartIcons[item.chartType]
+  
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`
+        w-full text-left p-2 rounded-lg glass-card
+        hover:border-primary/30 transition-all
+        disabled:opacity-50 disabled:cursor-not-allowed
+        animate-slide-in-left
+      `}
+      style={{ animationDelay: `${index * 50}ms` }}
+    >
+      <div className="flex items-center gap-2">
+        <Icon className="w-4 h-4 text-primary shrink-0" />
+        {!collapsed && (
+          <span className="text-sm text-foreground truncate">{item.query}</span>
+        )}
+      </div>
+    </button>
+  )
+}

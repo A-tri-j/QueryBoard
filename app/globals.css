@@ -1,0 +1,228 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@custom-variant dark (&:is(.dark *));
+
+/* QueryBoard - Bloomberg Terminal aesthetic */
+:root {
+  --background: #0a0f1e;
+  --foreground: #e2e8f0;
+  --card: #0f1629;
+  --card-foreground: #e2e8f0;
+  --popover: #0f1629;
+  --popover-foreground: #e2e8f0;
+  --primary: #00d4ff;
+  --primary-foreground: #0a0f1e;
+  --secondary: #1e293b;
+  --secondary-foreground: #e2e8f0;
+  --muted: #1e293b;
+  --muted-foreground: #64748b;
+  --accent: #00d4ff;
+  --accent-foreground: #0a0f1e;
+  --destructive: #ef4444;
+  --destructive-foreground: #fef2f2;
+  --border: #1e3a5f;
+  --input: #1e293b;
+  --ring: #00d4ff;
+  --chart-1: #00d4ff;
+  --chart-2: #0ea5e9;
+  --chart-3: #06b6d4;
+  --chart-4: #22d3ee;
+  --chart-5: #67e8f9;
+  --radius: 0.75rem;
+  --sidebar: #070b14;
+  --sidebar-foreground: #e2e8f0;
+  --sidebar-primary: #00d4ff;
+  --sidebar-primary-foreground: #0a0f1e;
+  --sidebar-accent: #1e293b;
+  --sidebar-accent-foreground: #e2e8f0;
+  --sidebar-border: #1e3a5f;
+  --sidebar-ring: #00d4ff;
+}
+
+.dark {
+  --background: #0a0f1e;
+  --foreground: #e2e8f0;
+  --card: #0f1629;
+  --card-foreground: #e2e8f0;
+  --popover: #0f1629;
+  --popover-foreground: #e2e8f0;
+  --primary: #00d4ff;
+  --primary-foreground: #0a0f1e;
+  --secondary: #1e293b;
+  --secondary-foreground: #e2e8f0;
+  --muted: #1e293b;
+  --muted-foreground: #64748b;
+  --accent: #00d4ff;
+  --accent-foreground: #0a0f1e;
+  --destructive: #ef4444;
+  --destructive-foreground: #fef2f2;
+  --border: #1e3a5f;
+  --input: #1e293b;
+  --ring: #00d4ff;
+  --chart-1: #00d4ff;
+  --chart-2: #0ea5e9;
+  --chart-3: #06b6d4;
+  --chart-4: #22d3ee;
+  --chart-5: #67e8f9;
+  --sidebar: #070b14;
+  --sidebar-foreground: #e2e8f0;
+  --sidebar-primary: #00d4ff;
+  --sidebar-primary-foreground: #0a0f1e;
+  --sidebar-accent: #1e293b;
+  --sidebar-accent-foreground: #e2e8f0;
+  --sidebar-border: #1e3a5f;
+  --sidebar-ring: #00d4ff;
+}
+
+@theme inline {
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), monospace;
+  --font-heading: var(--font-space-grotesk), system-ui, sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Grid texture background */
+.bg-grid-texture {
+  background-image: 
+    linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Glass morphism card effect */
+.glass-card {
+  background: linear-gradient(135deg, rgba(15, 22, 41, 0.9) 0%, rgba(15, 22, 41, 0.7) 100%);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 212, 255, 0.1);
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.05);
+}
+
+.glass-card:hover {
+  border-color: rgba(0, 212, 255, 0.25);
+  box-shadow: 0 0 30px rgba(0, 212, 255, 0.1);
+}
+
+/* Glow effects */
+.glow-cyan {
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+}
+
+/* Typewriter animation */
+@keyframes typewriter {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.animate-typewriter::after {
+  content: '|';
+  animation: typewriter 1s infinite;
+}
+
+/* Progress bar animation */
+@keyframes progress-glow {
+  0%, 100% { box-shadow: 0 0 10px rgba(0, 212, 255, 0.5); }
+  50% { box-shadow: 0 0 20px rgba(0, 212, 255, 0.8); }
+}
+
+.animate-progress-glow {
+  animation: progress-glow 1.5s ease-in-out infinite;
+}
+
+/* Staggered fade-up animation */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.5s ease-out forwards;
+}
+
+/* Slide in from left */
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-left {
+  animation: slide-in-left 0.3s ease-out forwards;
+}
+
+/* Error shake */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+.animate-shake {
+  animation: shake 0.3s ease-in-out;
+}
+
+/* Skeleton pulse */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.7; }
+}
+
+.animate-skeleton {
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
