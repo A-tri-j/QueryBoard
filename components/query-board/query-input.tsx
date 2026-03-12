@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { useQueryStore } from '@/lib/store'
 import { ArrowRight } from 'lucide-react'
 
@@ -35,17 +35,6 @@ export function QueryInput({ variant = 'hero', onExampleClick }: QueryInputProps
       onExampleClick(query)
     }
   }
-
-  const focusInput = () => {
-    inputRef.current?.focus()
-  }
-
-  // Expose focus method for error state retry
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      (window as Window & { focusQueryInput?: () => void }).focusQueryInput = focusInput
-    }
-  }, [])
 
   const isHero = variant === 'hero'
 

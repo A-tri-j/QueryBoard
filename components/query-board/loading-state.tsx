@@ -22,11 +22,8 @@ export function LoadingState() {
       {/* Progress bar */}
       <div className="w-full h-1 bg-secondary rounded-full overflow-hidden mb-8">
         <div 
-          className="h-full bg-primary animate-progress-glow"
-          style={{
-            width: '100%',
-            animation: 'progress 2s ease-in-out infinite, progress-glow 1.5s ease-in-out infinite'
-          }}
+          className="h-full bg-primary w-full"
+          style={{ animation: 'progress 2s ease-in-out infinite, progress-glow 1.5s ease-in-out infinite' }}
         />
       </div>
 
@@ -43,14 +40,6 @@ export function LoadingState() {
           {loadingMessages[messageIndex]}
         </p>
       </div>
-
-      <style jsx>{`
-        @keyframes progress {
-          0% { transform: translateX(-100%); }
-          50% { transform: translateX(0%); }
-          100% { transform: translateX(100%); }
-        }
-      `}</style>
     </div>
   )
 }

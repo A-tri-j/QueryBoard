@@ -6,11 +6,9 @@ import { QueryInput } from './query-input'
 import { Quote } from 'lucide-react'
 
 export function DashboardView() {
-  const { dashboardData, queryHistory } = useQueryStore()
+  const { dashboardData, lastQuery } = useQueryStore()
 
   if (!dashboardData) return null
-
-  const currentQuery = queryHistory[0]?.query || ''
 
   return (
     <div className="flex-1 flex flex-col p-8 overflow-y-auto">
@@ -18,7 +16,7 @@ export function DashboardView() {
       <div className="glass-card rounded-xl p-6 mb-6 animate-fade-up">
         <div className="flex items-start gap-3 mb-4">
           <Quote className="w-6 h-6 text-primary shrink-0 mt-1" />
-          <p className="text-lg text-foreground font-medium">{currentQuery}</p>
+          <p className="text-lg text-foreground font-medium">{lastQuery}</p>
         </div>
         <p className="text-muted-foreground leading-relaxed mb-4">
           {dashboardData.summary}
