@@ -28,6 +28,7 @@ interface QueryStore {
   dashboardData: DashboardData | null
   queryHistory: QueryHistoryItem[]
   errorMessage: string | null
+  lastQuery: string
   setQuery: (query: string) => void
   submitQuery: (query: string) => Promise<void>
   clearDashboard: () => void
@@ -180,20 +181,26 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
   dashboardData: null,
   queryHistory: [],
   errorMessage: null,
+  lastQuery: '',
   
   setQuery: (query) => set({ query }),
   
   submitQuery: async (query) => {
-    set({ status: 'loading', errorMessage: null })
+    set({ status: 'loading', errorMessage: null, lastQuery: query })
+    
+    // ─── MOCK: Replace this entire block with real API call when backend is ready ───
+    // POST http://localhost:8000/api/query  { body: JSON.stringify({ query }) }
+    // Expected response shape matches DashboardData interface above
+    // ────────────────────────────────────────────────────────────────────────────────
     
     // Simulate API call with 2 second delay
     await new Promise(resolve => setTimeout(resolve, 2000))
     
-    // Check for error simulation
+    // Check for error simulation - demonstrates hallucination handling
     if (query.toLowerCase().includes('revenue') || query.toLowerCase().includes('profit')) {
       set({ 
         status: 'error', 
-        errorMessage: "Column 'revenue' does not exist in the dataset. Available columns: age, gender, city_tier, shopping_preference, avg_online_spend, avg_store_spend, tech_savvy_score" 
+        errorMessage: "Column 'revenue' does not exist. Available numeric columns: avg_online_spend, avg_store_spend, monthly_online_orders, monthly_store_visits, tech_savvy_score, impulse_buying_score, brand_loyalty_score" 
       })
       return
     }

@@ -6,19 +6,9 @@ import { useQueryStore } from '@/lib/store'
 export function ErrorState() {
   const { errorMessage, clearDashboard } = useQueryStore()
 
-  const handleRetry = () => {
-    clearDashboard()
-    // Focus the input after clearing
-    setTimeout(() => {
-      if (typeof window !== 'undefined') {
-        (window as Window & { focusQueryInput?: () => void }).focusQueryInput?.()
-      }
-    }, 100)
-  }
-
   return (
     <div className="flex-1 flex items-center justify-center p-8">
-      <div className="glass-card rounded-xl p-8 max-w-md text-center animate-shake">
+      <div key={errorMessage} className="glass-card rounded-xl p-8 max-w-md text-center animate-shake">
         <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-6">
           <AlertTriangle className="w-8 h-8 text-destructive" />
         </div>
@@ -34,7 +24,7 @@ export function ErrorState() {
         )}
         
         <button
-          onClick={handleRetry}
+          onClick={clearDashboard}
           className="
             px-6 py-3 rounded-full
             bg-primary text-primary-foreground font-medium

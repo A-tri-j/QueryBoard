@@ -66,7 +66,7 @@ export function Sidebar() {
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">File</span>
-              <span className="font-mono text-foreground">customer_data.csv</span>
+              <span className="font-mono text-foreground text-xs">customer_behaviour.csv</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Rows</span>
@@ -74,7 +74,7 @@ export function Sidebar() {
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Columns</span>
-              <span className="font-mono text-primary">8</span>
+              <span className="font-mono text-primary">25</span>
             </div>
           </div>
         )}
