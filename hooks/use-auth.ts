@@ -37,7 +37,7 @@ export function useAuth() {
       document.cookie = `qb_token=${token}; path=/; max-age=${60 * 60 * 24}; SameSite=Lax`
     } else {
       localStorage.removeItem(TOKEN_KEY)
-      document.cookie = 'qb_token=; path=/; max-age=0; path=/'
+      document.cookie = 'qb_token=; path=/; max-age=0; SameSite=Lax'
     }
   }, [])
 

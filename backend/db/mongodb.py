@@ -10,6 +10,8 @@ load_dotenv(dotenv_path=Path(__file__).resolve().parents[1] / ".env")
 
 MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
 MONGODB_DB_NAME = os.getenv("MONGODB_DB_NAME", "queryboard")
+AUTH_MODE = os.getenv("QUERYBOARD_AUTH_MODE", "real").strip().lower()
+MOCK_AUTH_ENABLED = AUTH_MODE == "mock"
 
 mongo_client: AsyncIOMotorClient | None = None
 mongo_database: AsyncIOMotorDatabase | None = None
@@ -47,6 +49,8 @@ def get_users_collection() -> AsyncIOMotorCollection:
 
 @asynccontextmanager
 async def mongo_lifespan(app):
-    await connect_to_mongo()
+    if not MOCK_AUTH_ENABLED:
+        await connect_to_mongo()
     yield
-    await close_mongo_connection()
+    if not MOCK_AUTH_ENABLED:
+        await close_mongo_connection()

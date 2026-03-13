@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import RedirectResponse
 
-from core.security import create_access_token
+from core.security import MOCK_AUTH_ENABLED, create_access_token, create_mock_access_token
 from db.mongodb import get_users_collection
 
 
@@ -24,13 +24,26 @@ def _get_required_env(name: str) -> str:
     return value
 
 
+def _get_frontend_url() -> str:
+    return os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
+
+
 def _build_redirect_uri() -> str:
-    backend_url = _get_required_env("BACKEND_URL").rstrip("/")
+    backend_url = os.getenv("BACKEND_URL", "http://127.0.0.1:8000").rstrip("/")
     return f"{backend_url}/auth/google/callback"
 
 
 @router.get("/auth/google")
 async def google_login() -> RedirectResponse:
+    if MOCK_AUTH_ENABLED:
+        frontend_url = _get_frontend_url()
+        token = create_mock_access_token(
+            email="demo@queryboard.app",
+            full_name="Hackathon Demo",
+            auth_provider="google",
+        )
+        return RedirectResponse(url=f"{frontend_url}/auth/callback?token={token}")
+
     params = {
         "client_id": _get_required_env("GOOGLE_CLIENT_ID"),
         "redirect_uri": _build_redirect_uri(),
@@ -42,8 +55,20 @@ async def google_login() -> RedirectResponse:
 
 
 @router.get("/auth/google/callback")
-async def google_callback(code: str = Query(...)) -> RedirectResponse:
-    frontend_url = _get_required_env("FRONTEND_URL").rstrip("/")
+async def google_callback(code: str | None = Query(default=None)) -> RedirectResponse:
+    frontend_url = _get_frontend_url()
+
+    if MOCK_AUTH_ENABLED:
+        token = create_mock_access_token(
+            email="demo@queryboard.app",
+            full_name="Hackathon Demo",
+            auth_provider="google",
+        )
+        return RedirectResponse(url=f"{frontend_url}/auth/callback?token={token}")
+
+    if not code:
+        raise HTTPException(status_code=400, detail="Missing Google OAuth authorization code.")
+
     redirect_uri = _build_redirect_uri()
     token_payload = {
         "code": code,
@@ -110,5 +135,12 @@ async def google_callback(code: str = Query(...)) -> RedirectResponse:
         )
         user_id = str(user["_id"])
 
-    jwt_token = create_access_token(user_id, {"email": email, "auth_provider": "google"})
+    jwt_token = create_access_token(
+        user_id,
+        {
+            "email": email,
+            "full_name": profile.get("name") or email.split("@")[0],
+            "auth_provider": "google",
+        },
+    )
     return RedirectResponse(url=f"{frontend_url}/auth/callback?token={jwt_token}")
