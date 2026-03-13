@@ -165,6 +165,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
         )}
       </div>
     </aside>
+    </>
   )
 }
 
