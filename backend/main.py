@@ -4,6 +4,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from openai import OpenAI
 
 from chart_planner import plan_chart
 from dashboard_planner import build_dashboard_response
@@ -27,9 +28,9 @@ app = FastAPI(
     version="1.0.0",
 )
 
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
 # ── CORS ──────────────────────────────────────────────────────────────────────
-# Allow all origins in production so Vercel preview URLs also work.
-# Tighten this to your specific Vercel domain after launch if needed.
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*")
 
 if ALLOWED_ORIGINS == "*":
@@ -60,6 +61,56 @@ def _build_multi_chart_summary(query: str, charts: list, rows_analyzed: int) -> 
     )
 
 
+def _validate_query_input(query: str) -> None:
+    """Raises HTTPException for short, symbol-only, or gibberish queries."""
+    if len(query) < 5:
+        raise HTTPException(
+            status_code=400,
+            detail="Query too short. Please ask a proper question about the dataset.",
+        )
+    if not any(c.isalpha() for c in query):
+        raise HTTPException(
+            status_code=400,
+            detail="Query must contain actual words, not just symbols or numbers.",
+        )
+    if len(query.split()) < 2:
+        raise HTTPException(
+            status_code=400,
+            detail="Please ask a more specific question about the data.",
+        )
+
+    # LLM gibberish check
+    try:
+        guard = client.chat.completions.create(
+            model="gpt-4o-mini",
+            temperature=0,
+            max_tokens=10,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a query validator. Reply with only 'YES' if the input is a "
+                        "meaningful question or request about data, customers, shopping, or business. "
+                        "Reply with only 'NO' if it is gibberish, random characters, nonsense, "
+                        "or completely unrelated to data analysis."
+                    ),
+                },
+                {"role": "user", "content": query},
+            ],
+        )
+        verdict = guard.choices[0].message.content.strip().upper()
+        if verdict != "YES":
+            raise HTTPException(
+                status_code=400,
+                detail="That doesn't look like a valid data question. Try something like: 'Show average spend by city tier'.",
+            )
+    except HTTPException:
+        raise
+    except Exception:
+        # If the guard itself fails, let the main pipeline handle it
+        pass
+
+
 @app.get("/health")
 def health_check():
     return {
@@ -71,7 +122,13 @@ def health_check():
 
 @app.post("/api/query", response_model=QueryResponse)
 async def handle_query(request: QueryRequest):
-    dashboard_response = build_dashboard_response(request.query)
+    query = request.query.strip()
+
+    # ── Input Guard ───────────────────────────────────────────────────────────
+    _validate_query_input(query)
+
+    # ── Dashboard shortcut (pre-built queries) ────────────────────────────────
+    dashboard_response = build_dashboard_response(query)
     if dashboard_response is not None:
         charts, rows_analyzed, summary = dashboard_response
         return QueryResponse(
@@ -80,11 +137,12 @@ async def handle_query(request: QueryRequest):
             rows_analyzed=rows_analyzed,
         )
 
-    if is_exploratory_query(request.query):
+    # ── Intent extraction ─────────────────────────────────────────────────────
+    if is_exploratory_query(query):
         intents = build_exploratory_intents()
     else:
         try:
-            base_intent = extract_intent(request.query)
+            base_intent = extract_intent(query)
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         except Exception as exc:
@@ -93,8 +151,9 @@ async def handle_query(request: QueryRequest):
                 detail=f"Intent extraction service unavailable: {str(exc)}",
             ) from exc
 
-        intents = expand_comparison_intents(request.query, base_intent)
+        intents = expand_comparison_intents(query, base_intent)
 
+    # ── Query execution ───────────────────────────────────────────────────────
     charts = []
     rows_analyzed_values: list[int] = []
 
@@ -126,16 +185,17 @@ async def handle_query(request: QueryRequest):
 
     rows_analyzed = max(rows_analyzed_values) if rows_analyzed_values else 0
 
+    # ── Summary ───────────────────────────────────────────────────────────────
     if len(charts) == 1:
         try:
-            summary = generate_summary(request.query, intents[0], charts[0], rows_analyzed)
+            summary = generate_summary(query, intents[0], charts[0], rows_analyzed)
         except Exception:
             summary = (
                 f"Analysis of {intents[0].metric} grouped by "
                 f"{', '.join(intents[0].group_by)} across {rows_analyzed:,} rows."
             )
     else:
-        summary = _build_multi_chart_summary(request.query, charts, rows_analyzed)
+        summary = _build_multi_chart_summary(query, charts, rows_analyzed)
 
     return QueryResponse(
         charts=charts,
