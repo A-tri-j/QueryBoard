@@ -11,17 +11,17 @@ export function DashboardView() {
   if (!dashboardData) return null
 
   return (
-    <div className="flex-1 flex flex-col p-8 overflow-y-auto">
+    <div className="flex-1 flex flex-col p-4 sm:p-6 md:p-8 overflow-y-auto">
       {/* Summary Card */}
-      <div className="glass-card rounded-xl p-6 mb-6 animate-fade-up">
-        <div className="flex items-start gap-3 mb-4">
-          <Quote className="w-6 h-6 text-primary shrink-0 mt-1" />
-          <p className="text-lg text-foreground font-medium">{lastQuery}</p>
+      <div className="glass-card rounded-xl p-4 sm:p-6 mb-4 sm:mb-6 animate-fade-up">
+        <div className="flex items-start gap-2 sm:gap-3 mb-3 sm:mb-4">
+          <Quote className="w-5 h-5 sm:w-6 sm:h-6 text-primary shrink-0 mt-0.5 sm:mt-1" />
+          <p className="text-base sm:text-lg text-foreground font-medium">{lastQuery}</p>
         </div>
-        <p className="text-muted-foreground leading-relaxed mb-4">
+        <p className="text-sm sm:text-base text-muted-foreground leading-relaxed mb-3 sm:mb-4">
           {dashboardData.summary}
         </p>
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
           <span className="font-mono">
             {dashboardData.timestamp.toLocaleTimeString()}
           </span>
@@ -32,7 +32,7 @@ export function DashboardView() {
       </div>
 
       {/* Charts Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
         {dashboardData.charts.map((chart, index) => (
           <ChartCard 
             key={`${chart.title}-${index}`} 
