@@ -69,14 +69,9 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
         className={`
           fixed left-0 top-0 h-screen bg-sidebar border-r border-sidebar-border
           flex flex-col transition-all duration-300 z-50
-          
-          /* Mobile: slide-in drawer */
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
           lg:translate-x-0
-          
-          /* Width */
-          w-72 lg:w-72
-          ${collapsed ? 'lg:w-16' : 'lg:w-72'}
+          w-72 ${collapsed ? 'lg:w-16' : 'lg:w-72'}
         `}
       >
       {/* Logo */}
