@@ -1,7 +1,6 @@
 'use client'
 
-import { Suspense } from 'react'
-import { useEffect } from 'react'
+import { Suspense, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 
@@ -12,18 +11,13 @@ function CallbackInner() {
 
   useEffect(() => {
     const token = searchParams.get('token')
-
     async function handleCallback() {
-      if (!token) {
-        router.replace('/')
-        return
-      }
+      if (!token) { router.replace('/'); return }
       window.localStorage.setItem('qb_token', token)
       document.cookie = `qb_token=${token}; path=/; max-age=${60 * 60 * 24}; SameSite=Lax`
       await refreshUser()
       router.replace('/')
     }
-
     void handleCallback()
   }, [refreshUser, router, searchParams])
 
