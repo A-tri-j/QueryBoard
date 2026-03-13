@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQueryStore, type QueryHistoryItem } from '@/lib/store'
 import { 
   BarChart3, 
@@ -10,7 +10,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Database,
-  History
+  History,
+  X
 } from 'lucide-react'
 
 const chartIcons = {
@@ -21,18 +22,63 @@ const chartIcons = {
   scatter: ScatterChart
 }
 
-export function Sidebar() {
+interface SidebarProps {
+  isOpen?: boolean
+  onClose?: () => void
+}
+
+export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
   const { queryHistory, selectHistoryItem, status } = useQueryStore()
 
+  // Close sidebar on escape key
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose?.()
+      }
+    }
+    window.addEventListener('keydown', handleEscape)
+    return () => window.removeEventListener('keydown', handleEscape)
+  }, [isOpen, onClose])
+
+  // Prevent body scroll when sidebar is open on mobile
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [isOpen])
+
   return (
-    <aside 
-      className={`
-        fixed left-0 top-0 h-screen bg-sidebar border-r border-sidebar-border
-        flex flex-col transition-all duration-300 z-50
-        ${collapsed ? 'w-16' : 'w-72'}
-      `}
-    >
+    <>
+      {/* Backdrop overlay for mobile */}
+      {isOpen && (
+        <div 
+          className="lg:hidden fixed inset-0 bg-black/50 z-40 animate-in fade-in duration-200"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
+      
+      <aside 
+        className={`
+          fixed left-0 top-0 h-screen bg-sidebar border-r border-sidebar-border
+          flex flex-col transition-all duration-300 z-50
+          
+          /* Mobile: slide-in drawer */
+          ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+          lg:translate-x-0
+          
+          /* Width */
+          w-72 lg:w-72
+          ${collapsed ? 'lg:w-16' : 'lg:w-72'}
+        `}
+      >
       {/* Logo */}
       <div className="flex items-center justify-between p-4 border-b border-sidebar-border">
         {!collapsed && (
@@ -48,9 +94,20 @@ export function Sidebar() {
             <BarChart3 className="w-5 h-5 text-primary-foreground" />
           </div>
         )}
+        
+        {/* Mobile close button */}
+        <button 
+          onClick={onClose}
+          className="lg:hidden p-1 hover:bg-sidebar-accent rounded-md transition-colors text-muted-foreground hover:text-foreground"
+          aria-label="Close sidebar"
+        >
+          <X className="w-5 h-5" />
+        </button>
+        
+        {/* Desktop collapse toggle */}
         <button 
           onClick={() => setCollapsed(!collapsed)}
-          className="p-1 hover:bg-sidebar-accent rounded-md transition-colors text-muted-foreground hover:text-foreground"
+          className="hidden lg:block p-1 hover:bg-sidebar-accent rounded-md transition-colors text-muted-foreground hover:text-foreground"
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}

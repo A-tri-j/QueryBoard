@@ -27,7 +27,8 @@ interface ChartCardProps {
   fullWidth?: boolean
 }
 
-const COLORS = ['#00d4ff', '#0ea5e9', '#06b6d4', '#22d3ee', '#67e8f9']
+// Use CSS variable-friendly colors that work with both themes
+const COLORS = ['#818cf8', '#a78bfa', '#c4b5fd', '#6366f1', '#4f46e5']
 
 export function ChartCard({ chart, index, fullWidth = false }: ChartCardProps) {
   const [showData, setShowData] = useState(false)
@@ -42,20 +43,20 @@ export function ChartCard({ chart, index, fullWidth = false }: ChartCardProps) {
   return (
     <div 
       className={`
-        glass-card rounded-xl p-6 animate-fade-up
+        glass-card rounded-xl p-4 sm:p-6 animate-fade-up
         ${fullWidth ? 'col-span-1 md:col-span-2' : ''}
       `}
       style={{ animationDelay: `${index * 150}ms` }}
     >
       {/* Header */}
-      <div className="flex items-start justify-between mb-2">
-        <div>
-          <h3 className="text-lg font-semibold text-foreground">{chart.title}</h3>
-          <p className="text-sm text-muted-foreground italic">{chart.reason}</p>
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <div className="min-w-0 flex-1">
+          <h3 className="text-base sm:text-lg font-semibold text-foreground truncate">{chart.title}</h3>
+          <p className="text-xs sm:text-sm text-muted-foreground italic line-clamp-2">{chart.reason}</p>
         </div>
         <button
           onClick={handleCopy}
-          className="p-2 hover:bg-secondary rounded-lg transition-colors text-muted-foreground hover:text-foreground"
+          className="p-1.5 sm:p-2 hover:bg-secondary rounded-lg transition-colors text-muted-foreground hover:text-foreground shrink-0"
           aria-label="Copy chart data as JSON"
         >
           {copied ? <Check className="w-4 h-4 text-primary" /> : <Copy className="w-4 h-4" />}
@@ -63,7 +64,7 @@ export function ChartCard({ chart, index, fullWidth = false }: ChartCardProps) {
       </div>
 
       {/* Chart */}
-      <div className="h-64 mt-4">
+      <div className="h-48 sm:h-64 mt-3 sm:mt-4">
         <ResponsiveContainer width="100%" height="100%">
           {renderChart(chart)}
         </ResponsiveContainer>
@@ -73,7 +74,7 @@ export function ChartCard({ chart, index, fullWidth = false }: ChartCardProps) {
       <button
         onClick={() => setShowData(!showData)}
         className="
-          flex items-center gap-2 mt-4 text-sm text-muted-foreground
+          flex items-center gap-2 mt-3 sm:mt-4 text-xs sm:text-sm text-muted-foreground
           hover:text-foreground transition-colors
         "
       >
@@ -83,12 +84,12 @@ export function ChartCard({ chart, index, fullWidth = false }: ChartCardProps) {
 
       {/* Data table */}
       {showData && (
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="mt-3 sm:mt-4 overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
+          <table className="w-full text-xs sm:text-sm min-w-[400px]">
             <thead>
               <tr className="border-b border-border">
                 {Object.keys(chart.data[0] || {}).map((key) => (
-                  <th key={key} className="text-left py-2 px-3 font-mono text-muted-foreground">
+                  <th key={key} className="text-left py-2 px-2 sm:px-3 font-mono text-muted-foreground whitespace-nowrap">
                     {key}
                   </th>
                 ))}
@@ -98,7 +99,7 @@ export function ChartCard({ chart, index, fullWidth = false }: ChartCardProps) {
               {chart.data.map((row, i) => (
                 <tr key={i} className="border-b border-border/50">
                   {Object.values(row).map((value, j) => (
-                    <td key={j} className="py-2 px-3 font-mono text-foreground">
+                    <td key={j} className="py-2 px-2 sm:px-3 font-mono text-foreground whitespace-nowrap">
                       {String(value)}
                     </td>
                   ))}
@@ -138,18 +139,23 @@ function renderChart(chart: ChartData) {
       )
       return (
         <BarChart data={chart.data}>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+          <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
           <XAxis 
             dataKey={chart.x} 
-            tick={{ fill: '#64748b', fontSize: 12 }}
-            axisLine={{ stroke: '#1e3a5f' }}
+            tick={{ fill: 'currentColor', fontSize: 10 }}
+            tickLine={{ stroke: 'currentColor' }}
+            axisLine={{ stroke: 'currentColor' }}
+            className="text-muted-foreground"
           />
           <YAxis 
-            tick={{ fill: '#64748b', fontSize: 12 }}
-            axisLine={{ stroke: '#1e3a5f' }}
+            tick={{ fill: 'currentColor', fontSize: 10 }}
+            tickLine={{ stroke: 'currentColor' }}
+            axisLine={{ stroke: 'currentColor' }}
+            className="text-muted-foreground"
+            width={40}
           />
           <Tooltip content={<CustomTooltip />} />
-          {chart.type === 'bar' ? <Legend wrapperStyle={{ paddingTop: '10px' }} /> : null}
+          {chart.type === 'bar' ? <Legend wrapperStyle={{ paddingTop: '10px', fontSize: '12px' }} /> : null}
           {barKeys.map((key, index) => (
             <Bar 
               key={key} 
@@ -167,25 +173,30 @@ function renderChart(chart: ChartData) {
       ) || chart.y
       return (
         <LineChart data={chart.data}>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+          <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
           <XAxis 
             dataKey={chart.x} 
-            tick={{ fill: '#64748b', fontSize: 12 }}
-            axisLine={{ stroke: '#1e3a5f' }}
+            tick={{ fill: 'currentColor', fontSize: 10 }}
+            tickLine={{ stroke: 'currentColor' }}
+            axisLine={{ stroke: 'currentColor' }}
+            className="text-muted-foreground"
           />
           <YAxis 
-            tick={{ fill: '#64748b', fontSize: 12 }}
-            axisLine={{ stroke: '#1e3a5f' }}
+            tick={{ fill: 'currentColor', fontSize: 10 }}
+            tickLine={{ stroke: 'currentColor' }}
+            axisLine={{ stroke: 'currentColor' }}
+            className="text-muted-foreground"
+            width={40}
           />
           <Tooltip content={<CustomTooltip />} />
-          <Legend wrapperStyle={{ paddingTop: '10px' }} />
+          <Legend wrapperStyle={{ paddingTop: '10px', fontSize: '12px' }} />
           <Line 
             type="monotone" 
             dataKey={lineKey} 
-            stroke="#00d4ff" 
+            stroke="#818cf8" 
             strokeWidth={2}
-            dot={{ fill: '#00d4ff', strokeWidth: 0 }}
-            activeDot={{ r: 6, fill: '#00d4ff' }}
+            dot={{ fill: '#818cf8', strokeWidth: 0 }}
+            activeDot={{ r: 6, fill: '#818cf8' }}
           />
         </LineChart>
       )
@@ -193,25 +204,30 @@ function renderChart(chart: ChartData) {
     case 'scatter':
       return (
         <ScatterChart>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+          <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
           <XAxis 
             dataKey={chart.x} 
             name={chart.x}
-            tick={{ fill: '#64748b', fontSize: 12 }}
-            axisLine={{ stroke: '#1e3a5f' }}
+            tick={{ fill: 'currentColor', fontSize: 10 }}
+            tickLine={{ stroke: 'currentColor' }}
+            axisLine={{ stroke: 'currentColor' }}
+            className="text-muted-foreground"
           />
           <YAxis 
             dataKey={chart.y} 
             name={chart.y}
-            tick={{ fill: '#64748b', fontSize: 12 }}
-            axisLine={{ stroke: '#1e3a5f' }}
+            tick={{ fill: 'currentColor', fontSize: 10 }}
+            tickLine={{ stroke: 'currentColor' }}
+            axisLine={{ stroke: 'currentColor' }}
+            className="text-muted-foreground"
+            width={40}
           />
           <Tooltip content={<CustomTooltip />} cursor={{ strokeDasharray: '3 3' }} />
-          <Legend wrapperStyle={{ paddingTop: '10px' }} />
+          <Legend wrapperStyle={{ paddingTop: '10px', fontSize: '12px' }} />
           <Scatter 
             name="Data Points" 
             data={chart.data} 
-            fill="#00d4ff"
+            fill="#818cf8"
           />
         </ScatterChart>
       )

@@ -10,9 +10,9 @@ interface QueryInputProps {
 }
 
 const exampleQueries = [
-  "Compare online vs store spending by city tier",
-  "Show gender distribution across shopping preferences",
-  "Which age group has the highest tech savvy score?"
+  "Compare online vs store spending",
+  "Gender distribution by shopping type",
+  "Highest tech savvy age group?"
 ]
 
 export function QueryInput({ variant = 'hero', onExampleClick }: QueryInputProps) {
@@ -39,14 +39,14 @@ export function QueryInput({ variant = 'hero', onExampleClick }: QueryInputProps
   const isHero = variant === 'hero'
 
   return (
-    <div className={isHero ? 'w-full max-w-2xl mx-auto' : 'w-full'}>
+    <div className={isHero ? 'w-full max-w-2xl mx-auto px-2 sm:px-0' : 'w-full'}>
       <form onSubmit={handleSubmit}>
         <div 
           className={`
             relative flex items-center gap-2
             bg-secondary/50 border border-border rounded-full
-            ${isHero ? 'p-2 pl-6' : 'p-1.5 pl-4'}
-            focus-within:border-primary/50 focus-within:shadow-[0_0_20px_rgba(0,212,255,0.15)]
+            ${isHero ? 'p-1.5 pl-4 sm:p-2 sm:pl-6' : 'p-1.5 pl-4'}
+            focus-within:border-primary/50 focus-within:shadow-[0_0_20px_rgba(129,140,248,0.15)]
             transition-all
           `}
         >
@@ -55,12 +55,12 @@ export function QueryInput({ variant = 'hero', onExampleClick }: QueryInputProps
             type="text"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            placeholder="Ask a question about your data..."
+            placeholder="Ask about your data..."
             disabled={status === 'loading'}
             className={`
               flex-1 bg-transparent text-foreground placeholder:text-muted-foreground
-              focus:outline-none disabled:opacity-50
-              ${isHero ? 'text-lg' : 'text-base'}
+              focus:outline-none disabled:opacity-50 min-w-0
+              ${isHero ? 'text-base sm:text-lg' : 'text-base'}
             `}
           />
           <button
@@ -68,28 +68,28 @@ export function QueryInput({ variant = 'hero', onExampleClick }: QueryInputProps
             disabled={!inputValue.trim() || status === 'loading'}
             className={`
               rounded-full bg-primary text-primary-foreground
-              flex items-center justify-center
+              flex items-center justify-center shrink-0
               hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed
-              transition-all glow-cyan
-              ${isHero ? 'w-12 h-12' : 'w-10 h-10'}
+              transition-all glow-primary
+              ${isHero ? 'w-10 h-10 sm:w-12 sm:h-12' : 'w-10 h-10'}
             `}
             aria-label="Submit query"
           >
-            <ArrowRight className={isHero ? 'w-6 h-6' : 'w-5 h-5'} />
+            <ArrowRight className={isHero ? 'w-5 h-5 sm:w-6 sm:h-6' : 'w-5 h-5'} />
           </button>
         </div>
       </form>
 
       {/* Example queries - only in hero variant */}
       {isHero && (
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
+        <div className="mt-4 sm:mt-6 flex flex-wrap justify-center gap-2">
           {exampleQueries.map((query) => (
             <button
               key={query}
               onClick={() => handleExampleClick(query)}
               disabled={status === 'loading'}
               className="
-                px-4 py-2 rounded-full text-sm
+                px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm
                 bg-secondary/50 border border-border
                 text-muted-foreground hover:text-foreground
                 hover:border-primary/30 hover:bg-secondary
