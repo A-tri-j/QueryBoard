@@ -8,3 +8,13 @@ node_modules/
 .next/
 .env*.local
 .DS_Store
+
+backend/venv/
+
+backend/__pycache__/
+backend/.env
+
+backend/.env
+backend/venv/
+__pycache__/
+*.pyc

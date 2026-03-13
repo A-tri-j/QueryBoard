@@ -15,6 +15,7 @@ import {
 
 const chartIcons = {
   bar: BarChart3,
+  histogram: BarChart3,
   line: LineChart,
   pie: PieChart,
   scatter: ScatterChart
