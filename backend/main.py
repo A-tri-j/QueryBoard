@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -26,13 +27,26 @@ app = FastAPI(
     version="1.0.0",
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# ── CORS ──────────────────────────────────────────────────────────────────────
+# Allow all origins in production so Vercel preview URLs also work.
+# Tighten this to your specific Vercel domain after launch if needed.
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*")
+
+if ALLOWED_ORIGINS == "*":
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[o.strip() for o in ALLOWED_ORIGINS.split(",")],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 
 def _build_multi_chart_summary(query: str, charts: list, rows_analyzed: int) -> str:
@@ -80,6 +94,7 @@ async def handle_query(request: QueryRequest):
             ) from exc
 
         intents = expand_comparison_intents(request.query, base_intent)
+
     charts = []
     rows_analyzed_values: list[int] = []
 
