@@ -4,7 +4,6 @@ import { useEffect } from 'react'
 import { create } from 'zustand'
 
 const TOKEN_KEY = 'qb_token'
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://127.0.0.1:8000'
 
 export interface AuthUser {
   id: string
@@ -13,6 +12,19 @@ export interface AuthUser {
   auth_provider: string
   created_at?: string
   updated_at?: string
+}
+
+interface AuthMeResponse {
+  success: boolean
+  message: string
+  data?: {
+    user: {
+      user_id: string
+      email: string
+      display_name: string | null
+      plan: 'free' | 'pro' | 'team'
+    }
+  }
 }
 
 interface AuthViewState {
@@ -72,7 +84,7 @@ const useAuthInternalStore = create<AuthStore>((set) => ({
     }))
 
     try {
-      const response = await fetch(`${BACKEND_URL}/me`, {
+      const response = await fetch('/api/auth/me', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -83,7 +95,18 @@ const useAuthInternalStore = create<AuthStore>((set) => ({
         throw new Error('Unable to refresh the current user.')
       }
 
-      const user = (await response.json()) as AuthUser
+      const payload = (await response.json()) as AuthMeResponse
+      if (!payload.success || !payload.data?.user) {
+        throw new Error('Unable to refresh the current user.')
+      }
+
+      const user: AuthUser = {
+        id: payload.data.user.user_id,
+        email: payload.data.user.email,
+        full_name: payload.data.user.display_name ?? '',
+        auth_provider: 'local',
+      }
+
       set({
         state: {
           user,

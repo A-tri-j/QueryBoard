@@ -34,8 +34,10 @@ export function useAuth() {
     if (typeof window === 'undefined') return
     if (token) {
       localStorage.setItem(TOKEN_KEY, token)
+      document.cookie = `qb_token=${token}; path=/; max-age=${60 * 60 * 24}; SameSite=Lax`
     } else {
       localStorage.removeItem(TOKEN_KEY)
+      document.cookie = 'qb_token=; path=/; max-age=0; path=/'
     }
   }, [])
 
