@@ -3,37 +3,12 @@ import { NextRequest, NextResponse } from 'next/server'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-const backendBaseUrl =
-  process.env.QUERYBOARD_BACKEND_URL ??
-  process.env.NEXT_PUBLIC_QUERYBOARD_BACKEND_URL ??
-  process.env.NEXT_PUBLIC_BACKEND_URL ??
-  'http://127.0.0.1:8000'
-
 type RouteContext = {
   params: Promise<{
     authPath: string[]
   }> | {
     authPath: string[]
   }
-}
-
-type BackendAuthUser = {
-  id?: string
-  email?: string
-  full_name?: string | null
-}
-
-type BackendLoginRegisterResponse = {
-  access_token?: string
-  user?: BackendAuthUser
-  success?: boolean
-}
-
-type BackendMeResponse = {
-  id?: string
-  email?: string
-  full_name?: string | null
-  success?: boolean
 }
 
 type FrontendUser = {
@@ -43,202 +18,113 @@ type FrontendUser = {
   plan: 'free'
 }
 
+const DEMO_TOKEN = 'queryboard-hackathon-demo-token'
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 }
 
-function buildBackendUrl(pathname: string): string {
-  return new URL(pathname, backendBaseUrl).toString()
+function successResponse(message: string, data?: Record<string, unknown>, status = 200) {
+  return NextResponse.json(
+    {
+      success: true,
+      message,
+      ...(data ? { data } : {}),
+    },
+    {
+      status,
+      headers: corsHeaders,
+    },
+  )
 }
 
-async function parseResponsePayload(response: Response): Promise<unknown> {
-  const text = await response.text()
-
-  if (!text) {
-    return null
-  }
-
-  try {
-    return JSON.parse(text)
-  } catch {
-    return text
-  }
+function failureResponse(message: string, status = 400) {
+  return NextResponse.json(
+    {
+      success: false,
+      message,
+    },
+    {
+      status,
+      headers: corsHeaders,
+    },
+  )
 }
 
-function normalizeUser(user: BackendAuthUser): FrontendUser {
+function buildUser(email: string, displayName?: string | null): FrontendUser {
+  const normalizedEmail = email.trim() || 'demo@queryboard.app'
+  const fallbackName = normalizedEmail.includes('@')
+    ? normalizedEmail.split('@')[0]
+    : 'Demo User'
+
   return {
-    user_id: String(user.id ?? ''),
-    email: String(user.email ?? ''),
-    display_name: typeof user.full_name === 'string' ? user.full_name : null,
+    user_id: 'hackathon-demo-user',
+    email: normalizedEmail,
+    display_name: (displayName?.trim() || fallbackName),
     plan: 'free',
   }
 }
 
-function normalizeSuccess(payload: unknown) {
-  if (payload && typeof payload === 'object' && 'success' in payload) {
-    return payload
-  }
-
-  if (payload && typeof payload === 'object') {
-    const data = payload as BackendLoginRegisterResponse & BackendMeResponse
-
-    if (data.access_token && data.user) {
-      return {
-        success: true,
-        message: 'OK',
-        data: {
-          access_token: data.access_token,
-          user: normalizeUser(data.user),
-        },
-      }
-    }
-
-    if (data.id && data.email && !data.access_token) {
-      return {
-        success: true,
-        message: 'OK',
-        data: {
-          user: normalizeUser(data),
-        },
-      }
-    }
-  }
-
-  return {
-    success: true,
-    message: 'OK',
-    data: payload,
-  }
-}
-
-function normalizeError(payload: unknown) {
-  if (payload && typeof payload === 'object' && 'detail' in payload) {
-    const detail = payload.detail
-    return {
-      success: false,
-      message: typeof detail === 'string' ? detail : JSON.stringify(detail),
-    }
-  }
-
-  return {
-    success: false,
-    message: 'An error occurred',
-  }
-}
-
-function mapBackendPath(authPath: string[]): string {
-  if (authPath.length === 1) {
-    const [segment] = authPath
-
-    if (segment === 'login') return '/login'
-    if (segment === 'register') return '/register'
-    if (segment === 'me') return '/me'
-    if (segment === 'logout') return '/logout'
-    if (segment === 'google') return '/auth/google'
-  }
-
-  return `/${authPath.join('/')}`
-}
-
-async function buildBackendRequestBody(authPath: string[], request: NextRequest): Promise<string | undefined> {
-  if (request.method === 'GET' || request.method === 'DELETE') {
-    return undefined
-  }
-
-  const rawBody = await request.text()
-  if (!rawBody) {
-    return undefined
-  }
-
-  if (authPath[0] !== 'register') {
-    return rawBody
-  }
-
-  let payload: Record<string, unknown>
+async function parseJsonBody(request: NextRequest): Promise<Record<string, unknown>> {
   try {
-    payload = JSON.parse(rawBody) as Record<string, unknown>
+    return (await request.json()) as Record<string, unknown>
   } catch {
-    return rawBody
+    return {}
   }
-
-  const email = typeof payload.email === 'string' ? payload.email : ''
-  const displayName = typeof payload.display_name === 'string' ? payload.display_name.trim() : ''
-  const fullName = displayName || (email.includes('@') ? email.split('@')[0] : email) || 'QueryBoard User'
-
-  return JSON.stringify({
-    email: payload.email,
-    password: payload.password,
-    full_name: fullName,
-  })
 }
 
 async function handleRequest(request: NextRequest, context: RouteContext) {
   const { authPath } = await Promise.resolve(context.params)
+  const [segment] = authPath ?? []
 
-  if (!authPath || authPath.length === 0) {
-    return NextResponse.json(
-      { success: false, message: 'An error occurred' },
-      { status: 404, headers: corsHeaders },
-    )
+  if (!segment) {
+    return failureResponse('Auth route not found.', 404)
   }
 
-  if (request.method === 'GET' && authPath.length === 1 && authPath[0] === 'google') {
-    return NextResponse.redirect(buildBackendUrl('/auth/google'))
+  if (request.method === 'GET' && segment === 'google') {
+    const callbackUrl = new URL('/auth/callback', request.url)
+    callbackUrl.searchParams.set('token', DEMO_TOKEN)
+    return NextResponse.redirect(callbackUrl)
   }
 
-  const backendUrl = buildBackendUrl(mapBackendPath(authPath))
-  const body = await buildBackendRequestBody(authPath, request)
+  if (request.method === 'GET' && segment === 'me') {
+    const authHeader = request.headers.get('authorization') ?? ''
+    const token = authHeader.replace(/^Bearer\s+/i, '').trim()
 
-  try {
-    const backendResponse = await fetch(backendUrl, {
-      method: request.method,
-      headers: {
-        'Content-Type': request.headers.get('content-type') || 'application/json',
-        Authorization: request.headers.get('authorization') ?? '',
-      },
-      body,
-      cache: 'no-store',
-      redirect: 'manual',
-    })
-
-    if (
-      backendResponse.status >= 300 &&
-      backendResponse.status < 400 &&
-      request.method === 'GET'
-    ) {
-      const location = backendResponse.headers.get('location')
-      if (location) {
-        return NextResponse.redirect(location)
-      }
+    if (!token) {
+      return failureResponse('Unauthorized', 401)
     }
 
-    const payload = await parseResponsePayload(backendResponse)
-
-    if (!backendResponse.ok) {
-      return NextResponse.json(normalizeError(payload), {
-        status: backendResponse.status,
-        headers: corsHeaders,
-      })
-    }
-
-    return NextResponse.json(normalizeSuccess(payload), {
-      status: backendResponse.status,
-      headers: corsHeaders,
+    return successResponse('OK', {
+      user: buildUser('demo@queryboard.app', 'Hackathon Demo'),
     })
-  } catch {
-    return NextResponse.json(
-      {
-        success: false,
-        message: 'Backend unavailable. Please try again shortly.',
-      },
-      {
-        status: 503,
-        headers: corsHeaders,
-      },
-    )
   }
+
+  if (request.method === 'POST' && (segment === 'login' || segment === 'register')) {
+    const payload = await parseJsonBody(request)
+    const email =
+      typeof payload.email === 'string' && payload.email.trim()
+        ? payload.email
+        : 'demo@queryboard.app'
+    const displayName =
+      typeof payload.display_name === 'string'
+        ? payload.display_name
+        : typeof payload.full_name === 'string'
+          ? payload.full_name
+          : undefined
+
+    return successResponse('OK', {
+      access_token: DEMO_TOKEN,
+      user: buildUser(email, displayName),
+    })
+  }
+
+  if (request.method === 'POST' && segment === 'logout') {
+    return successResponse('OK')
+  }
+
+  return failureResponse('Auth route not found.', 404)
 }
 
 export const GET = handleRequest
