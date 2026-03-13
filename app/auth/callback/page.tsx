@@ -1,11 +1,11 @@
 'use client'
 
+import { Suspense } from 'react'
 import { useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-
 import { useAuth } from '@/hooks/useAuth'
 
-export default function AuthCallbackPage() {
+function CallbackInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { refreshUser } = useAuth()
@@ -18,7 +18,6 @@ export default function AuthCallbackPage() {
         router.replace('/')
         return
       }
-
       window.localStorage.setItem('qb_token', token)
       document.cookie = `qb_token=${token}; path=/; max-age=${60 * 60 * 24}; SameSite=Lax`
       await refreshUser()
@@ -37,5 +36,17 @@ export default function AuthCallbackPage() {
         </p>
       </div>
     </main>
+  )
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </main>
+    }>
+      <CallbackInner />
+    </Suspense>
   )
 }
