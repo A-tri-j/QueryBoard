@@ -4,79 +4,80 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* QueryBoard - Bloomberg Terminal aesthetic */
+/* QueryBoard - Light Mode */
 :root {
   --font-inter: "Segoe UI";
   --font-jetbrains-mono: "Cascadia Code";
   --font-syne: "Trebuchet MS";
-  --background: #0a0f1e;
-  --foreground: #e2e8f0;
-  --card: #0f1629;
-  --card-foreground: #e2e8f0;
-  --popover: #0f1629;
-  --popover-foreground: #e2e8f0;
-  --primary: #00d4ff;
-  --primary-foreground: #0a0f1e;
-  --secondary: #1e293b;
-  --secondary-foreground: #e2e8f0;
-  --muted: #1e293b;
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #6366f1;
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f172a;
+  --muted: #f1f5f9;
   --muted-foreground: #64748b;
-  --accent: #00d4ff;
-  --accent-foreground: #0a0f1e;
+  --accent: #6366f1;
+  --accent-foreground: #ffffff;
   --destructive: #ef4444;
   --destructive-foreground: #fef2f2;
-  --border: #1e3a5f;
-  --input: #1e293b;
-  --ring: #00d4ff;
-  --chart-1: #00d4ff;
-  --chart-2: #0ea5e9;
-  --chart-3: #06b6d4;
-  --chart-4: #22d3ee;
-  --chart-5: #67e8f9;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #6366f1;
+  --chart-1: #6366f1;
+  --chart-2: #8b5cf6;
+  --chart-3: #a855f7;
+  --chart-4: #c084fc;
+  --chart-5: #d8b4fe;
   --radius: 0.75rem;
-  --sidebar: #070b14;
-  --sidebar-foreground: #e2e8f0;
-  --sidebar-primary: #00d4ff;
-  --sidebar-primary-foreground: #0a0f1e;
-  --sidebar-accent: #1e293b;
-  --sidebar-accent-foreground: #e2e8f0;
-  --sidebar-border: #1e3a5f;
-  --sidebar-ring: #00d4ff;
+  --sidebar: #f8fafc;
+  --sidebar-foreground: #0f172a;
+  --sidebar-primary: #6366f1;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f1f5f9;
+  --sidebar-accent-foreground: #0f172a;
+  --sidebar-border: #e2e8f0;
+  --sidebar-ring: #6366f1;
 }
 
+/* QueryBoard - Dark Mode (Bloomberg Terminal aesthetic) */
 .dark {
-  --background: #0a0f1e;
-  --foreground: #e2e8f0;
-  --card: #0f1629;
-  --card-foreground: #e2e8f0;
-  --popover: #0f1629;
-  --popover-foreground: #e2e8f0;
-  --primary: #00d4ff;
-  --primary-foreground: #0a0f1e;
+  --background: #030712;
+  --foreground: #f8fafc;
+  --card: #0f172a;
+  --card-foreground: #f8fafc;
+  --popover: #0f172a;
+  --popover-foreground: #f8fafc;
+  --primary: #818cf8;
+  --primary-foreground: #030712;
   --secondary: #1e293b;
-  --secondary-foreground: #e2e8f0;
+  --secondary-foreground: #f8fafc;
   --muted: #1e293b;
-  --muted-foreground: #64748b;
-  --accent: #00d4ff;
-  --accent-foreground: #0a0f1e;
+  --muted-foreground: #94a3b8;
+  --accent: #818cf8;
+  --accent-foreground: #030712;
   --destructive: #ef4444;
   --destructive-foreground: #fef2f2;
-  --border: #1e3a5f;
+  --border: #334155;
   --input: #1e293b;
-  --ring: #00d4ff;
-  --chart-1: #00d4ff;
-  --chart-2: #0ea5e9;
-  --chart-3: #06b6d4;
-  --chart-4: #22d3ee;
-  --chart-5: #67e8f9;
-  --sidebar: #070b14;
-  --sidebar-foreground: #e2e8f0;
-  --sidebar-primary: #00d4ff;
-  --sidebar-primary-foreground: #0a0f1e;
+  --ring: #818cf8;
+  --chart-1: #818cf8;
+  --chart-2: #a78bfa;
+  --chart-3: #c4b5fd;
+  --chart-4: #ddd6fe;
+  --chart-5: #ede9fe;
+  --sidebar: #020617;
+  --sidebar-foreground: #f8fafc;
+  --sidebar-primary: #818cf8;
+  --sidebar-primary-foreground: #030712;
   --sidebar-accent: #1e293b;
-  --sidebar-accent-foreground: #e2e8f0;
-  --sidebar-border: #1e3a5f;
-  --sidebar-ring: #00d4ff;
+  --sidebar-accent-foreground: #f8fafc;
+  --sidebar-border: #334155;
+  --sidebar-ring: #818cf8;
 }
 
 @theme inline {
@@ -133,27 +134,49 @@
 /* Grid texture background */
 .bg-grid-texture {
   background-image: 
-    linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
+    linear-gradient(rgba(99, 102, 241, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(99, 102, 241, 0.03) 1px, transparent 1px);
   background-size: 32px 32px;
 }
 
-/* Glass morphism card effect */
+.dark .bg-grid-texture {
+  background-image: 
+    linear-gradient(rgba(129, 140, 248, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(129, 140, 248, 0.03) 1px, transparent 1px);
+}
+
+/* Glass morphism card effect - Light mode */
 .glass-card {
-  background: linear-gradient(135deg, rgba(15, 22, 41, 0.9) 0%, rgba(15, 22, 41, 0.7) 100%);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.7) 100%);
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(0, 212, 255, 0.1);
-  box-shadow: 0 0 20px rgba(0, 212, 255, 0.05);
+  border: 1px solid rgba(99, 102, 241, 0.1);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.05);
 }
 
 .glass-card:hover {
-  border-color: rgba(0, 212, 255, 0.25);
-  box-shadow: 0 0 30px rgba(0, 212, 255, 0.1);
+  border-color: rgba(99, 102, 241, 0.25);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+/* Glass morphism card effect - Dark mode */
+.dark .glass-card {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(15, 23, 42, 0.7) 100%);
+  border: 1px solid rgba(129, 140, 248, 0.1);
+  box-shadow: 0 0 20px rgba(129, 140, 248, 0.05);
+}
+
+.dark .glass-card:hover {
+  border-color: rgba(129, 140, 248, 0.25);
+  box-shadow: 0 0 30px rgba(129, 140, 248, 0.1);
 }
 
 /* Glow effects */
-.glow-cyan {
-  box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+.glow-primary {
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+}
+
+.dark .glow-primary {
+  box-shadow: 0 0 20px rgba(129, 140, 248, 0.3);
 }
 
 /* Typewriter animation */
