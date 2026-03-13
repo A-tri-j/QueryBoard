@@ -46,7 +46,7 @@ function setAuthCookie(token: string) {
 }
 
 function clearAuthCookie() {
-  document.cookie = 'qb_token=; path=/; max-age=0; path=/'
+  document.cookie = 'qb_token=; path=/; max-age=0; SameSite=Lax'
 }
 
 const useAuthInternalStore = create<AuthStore>((set) => ({

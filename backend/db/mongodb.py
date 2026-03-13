@@ -48,7 +48,5 @@ def get_users_collection() -> AsyncIOMotorCollection:
 @asynccontextmanager
 async def mongo_lifespan(app):
     await connect_to_mongo()
-    try:
-        yield
-    finally:
-        await close_mongo_connection()
+    yield
+    await close_mongo_connection()

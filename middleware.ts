@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const PUBLIC_ROUTES = ['/login', '/register', '/auth/callback']
+const PUBLIC_ROUTES = ['/login', '/register', '/auth/callback', '/terms', '/privacy']
 
-export function proxy(request: NextRequest) {  // ← was "middleware", now "proxy"
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const token = request.cookies.get('qb_token')?.value
   const isPublicRoute = PUBLIC_ROUTES.includes(pathname)

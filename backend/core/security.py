@@ -5,6 +5,7 @@ from typing import Any
 
 import bcrypt
 import jwt
+from jwt.exceptions import PyJWTError
 from bson import ObjectId
 from dotenv import load_dotenv
 from fastapi import Depends, HTTPException, status
@@ -15,7 +16,7 @@ from db.mongodb import get_users_collection
 
 load_dotenv(dotenv_path=Path(__file__).resolve().parents[1] / ".env")
 
-JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "change-me-in-production")
+JWT_SECRET_KEY = os.getenv("SECRET_KEY") or os.getenv("JWT_SECRET_KEY") or "change-me-in-production"
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 JWT_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES", "10080"))
 
@@ -48,7 +49,7 @@ def create_access_token(subject: str, extra_claims: dict[str, Any] | None = None
 def decode_access_token(token: str) -> dict[str, Any]:
     try:
         return jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
-    except jwt.PyJWTError as exc:
+    except PyJWTError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired authentication token.",

@@ -37,7 +37,7 @@ function GoogleIcon({ className }: { className?: string }) {
 type PasswordStrength = 'weak' | 'fair' | 'strong'
 
 function getPasswordStrength(password: string): PasswordStrength {
-  if (password.length < 6) return 'weak'
+  if (password.length < 8) return 'weak'
   
   let score = 0
   if (password.length >= 8) score++
@@ -107,8 +107,8 @@ export default function RegisterPage() {
       return
     }
 
-    if (password.length < 6) {
-      setValidationError('Password must be at least 6 characters')
+    if (password.length < 8) {
+      setValidationError('Password must be at least 8 characters')
       return
     }
 

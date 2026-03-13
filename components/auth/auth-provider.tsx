@@ -1,7 +1,8 @@
 'use client'
 
-import { createContext, useContext, type ReactNode } from 'react'
-import { useAuth, type User } from '@/hooks/use-auth'
+import { createContext, useContext, useEffect, type ReactNode } from 'react'
+import { useAuth as useZustandAuth } from '@/hooks/useAuth'
+import { useAuth as useLocalAuth, type User } from '@/hooks/use-auth'
 
 interface AuthContextType {
   user: User | null
@@ -18,10 +19,21 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const auth = useAuth()
+  const localAuth = useLocalAuth()
+  const zustandAuth = useZustandAuth()
+
+  // Whenever local auth state changes (login/logout), sync the Zustand store
+  useEffect(() => {
+    if (localAuth.user && !zustandAuth.state.isAuthenticated) {
+      void zustandAuth.refreshUser()
+    }
+    if (!localAuth.user && zustandAuth.state.isAuthenticated) {
+      zustandAuth.logout()
+    }
+  }, [localAuth.user])
 
   return (
-    <AuthContext.Provider value={auth}>
+    <AuthContext.Provider value={localAuth}>
       {children}
     </AuthContext.Provider>
   )
