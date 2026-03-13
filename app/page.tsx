@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useAuth } from '@/hooks/useAuth'
 import { useQueryStore } from '@/lib/store'
 import { Sidebar } from '@/components/query-board/sidebar'
 import { HeroState } from '@/components/query-board/hero-state'
@@ -10,8 +11,21 @@ import { ErrorState } from '@/components/query-board/error-state'
 import { MobileHeader } from '@/components/query-board/mobile-header'
 
 export default function QueryBoardPage() {
+  const { state } = useAuth()
   const { status } = useQueryStore()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  if (state.isLoading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="w-12 h-12 rounded-full border-4 border-white/20 border-t-white animate-spin" />
+      </div>
+    )
+  }
+
+  if (!state.isAuthenticated) {
+    return null
+  }
 
   return (
     <div className="min-h-screen bg-background bg-grid-texture">

@@ -3,11 +3,12 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 from openai import OpenAI
 
 from chart_planner import plan_chart
+from core.middleware import setup_middleware
 from dashboard_planner import build_dashboard_response
+from db.mongodb import mongo_lifespan
 from intent_extractor import (
     build_exploratory_intents,
     expand_comparison_intents,
@@ -16,6 +17,8 @@ from intent_extractor import (
 )
 from models import ErrorResponse, QueryRequest, QueryResponse
 from query_engine import execute_query, result_to_records
+from routes.auth import router as auth_router
+from routes.google_auth import router as google_auth_router
 from schema_extractor import schema_memory
 from summarizer import generate_summary
 from validator import validate_intent
@@ -26,28 +29,15 @@ app = FastAPI(
     title="QueryBoard API",
     description="Conversational AI for Business Intelligence Dashboards",
     version="1.0.0",
+    lifespan=mongo_lifespan,
 )
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*")
-
-if ALLOWED_ORIGINS == "*":
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-else:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=[o.strip() for o in ALLOWED_ORIGINS.split(",")],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+setup_middleware(app)
+app.include_router(auth_router)
+app.include_router(google_auth_router)
 
 
 def _build_multi_chart_summary(query: str, charts: list, rows_analyzed: int) -> str:
