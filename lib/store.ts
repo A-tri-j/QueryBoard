@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 
 export interface ChartData {
-  type: 'bar' | 'line' | 'scatter' | 'pie'
+  type: 'bar' | 'line' | 'scatter' | 'pie' | 'histogram'
   title: string
   x: string
   y: string
@@ -18,7 +18,7 @@ export interface DashboardData {
 
 export interface QueryHistoryItem {
   query: string
-  chartType: 'bar' | 'line' | 'scatter' | 'pie'
+  chartType: 'bar' | 'line' | 'scatter' | 'pie' | 'histogram'
   timestamp: Date
 }
 
@@ -147,7 +147,7 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
       }
 
       const currentHistory = get().queryHistory
-      const updatedHistory = [newHistoryItem, ...currentHistory.filter((item) => item.query !== normalizedQuery)].slice(0, 5)
+      const updatedHistory = [newHistoryItem, ...currentHistory.filter((item) => item.query !== normalizedQuery)].slice(0, 10)
 
       set({
         status: 'success',

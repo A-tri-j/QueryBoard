@@ -131,6 +131,7 @@ function renderChart(chart: ChartData) {
 
   switch (chart.type) {
     case 'bar':
+    case 'histogram':
       // Determine data keys for grouped bar chart
       const barKeys = Object.keys(chart.data[0] || {}).filter(
         (key) => key !== chart.x && typeof chart.data[0][key] === 'number'
@@ -148,7 +149,7 @@ function renderChart(chart: ChartData) {
             axisLine={{ stroke: '#1e3a5f' }}
           />
           <Tooltip content={<CustomTooltip />} />
-          <Legend wrapperStyle={{ paddingTop: '10px' }} />
+          {chart.type === 'bar' ? <Legend wrapperStyle={{ paddingTop: '10px' }} /> : null}
           {barKeys.map((key, index) => (
             <Bar 
               key={key} 
