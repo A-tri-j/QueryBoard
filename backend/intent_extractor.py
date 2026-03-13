@@ -169,6 +169,7 @@ def _build_column_aliases() -> dict[str, set[str]]:
         "environmental_awareness": {"eco awareness", "sustainability awareness"},
         "time_pressure_level": {"time pressure", "busy level"},
         "gender": {"gender split", "male female split"},
+        "age_group": {"age group", "age groups", "different age groups"},
         "city_tier": {"city tier", "city tiers", "tier"},
         "shopping_preference": {"shopping preference", "shopping preferences", "preference", "shopper type"},
     }
@@ -224,6 +225,51 @@ GROUP_BY_PATTERNS = (
 )
 GROUP_BY_SPLIT_PATTERN = re.compile(
     r"\b(?:where|with|for|among|who|that|which|having|when|after|before)\b"
+)
+FILTER_PATTERNS = (
+    r"\bfor (?P<chunk>.+)",
+    r"\bwhere (?P<chunk>.+)",
+    r"\bamong (?P<chunk>.+)",
+    r"\bwith (?P<chunk>.+)",
+)
+FILTER_SPLIT_PATTERN = re.compile(
+    r"\b(?:by|across|per|grouped by|split by|breakdown by|for each|and|or)\b"
+)
+REFERENCE_STOPWORDS = {
+    "a",
+    "an",
+    "all",
+    "and",
+    "any",
+    "customer",
+    "customers",
+    "data",
+    "dataset",
+    "each",
+    "for",
+    "from",
+    "get",
+    "give",
+    "in",
+    "me",
+    "of",
+    "records",
+    "results",
+    "show",
+    "the",
+}
+COMPARISON_KEYWORDS = ("compare", "comparison", "vs", "versus", "against", "both")
+EXPLORATORY_KEYWORDS = (
+    "interesting insight",
+    "interesting insights",
+    "dataset overview",
+    "overview of this dataset",
+    "overview of the dataset",
+    "insights about this dataset",
+    "insights on this dataset",
+    "show insights",
+    "explore this dataset",
+    "analyze this dataset",
 )
 
 
@@ -297,6 +343,82 @@ def _extract_categorical_mentions(query: str) -> dict[str, list[str]]:
     return mentions
 
 
+def _has_meaningful_tokens(chunk: str) -> bool:
+    return any(
+        token not in REFERENCE_STOPWORDS and not token.isdigit()
+        for token in chunk.split()
+    )
+
+
+def _supports_reference(chunk: str) -> bool:
+    return bool(
+        _find_columns(chunk, ALL_COLUMNS)
+        or _extract_categorical_mentions(chunk)
+        or _extract_numeric_filters(chunk)
+    )
+
+
+def _normalize_group_by_columns(columns: list[str]) -> list[str]:
+    normalized_columns: list[str] = []
+
+    for column in columns:
+        if column not in normalized_columns:
+            normalized_columns.append(column)
+
+    if "age_group" in normalized_columns and "age" in normalized_columns:
+        normalized_columns = [column for column in normalized_columns if column != "age"]
+
+    return normalized_columns[:2]
+
+
+def _normalize_intent_from_query(query: str, intent: IntentModel) -> IntentModel:
+    normalized_group_by = _normalize_group_by_columns(intent.group_by)
+
+    if any(alias in query for alias in COLUMN_ALIASES["age_group"]):
+        normalized_group_by = [
+            "age_group",
+            *[
+                column
+                for column in normalized_group_by
+                if column not in {"age", "age_group"}
+            ],
+        ]
+
+    return intent.model_copy(update={"group_by": normalized_group_by[:2]})
+
+
+def _validate_requested_references(query: str) -> None:
+    available_dimensions = ", ".join(CATEGORICAL_COLUMNS)
+    available_filters = ", ".join(ALL_COLUMNS)
+
+    for pattern in GROUP_BY_PATTERNS:
+        match = re.search(pattern, query)
+        if not match:
+            continue
+
+        chunk = GROUP_BY_SPLIT_PATTERN.split(match.group("chunk"), maxsplit=1)[0].strip()
+        if not chunk or _supports_reference(chunk):
+            continue
+
+        if _has_meaningful_tokens(chunk):
+            raise ValueError(
+                f"'{chunk}' is not available in the dataset. "
+                f"Available dimensions are: {available_dimensions}."
+            )
+
+    for pattern in FILTER_PATTERNS:
+        for match in re.finditer(pattern, query):
+            chunk = FILTER_SPLIT_PATTERN.split(match.group("chunk"), maxsplit=1)[0].strip()
+            if not chunk or _supports_reference(chunk):
+                continue
+
+            if _has_meaningful_tokens(chunk):
+                raise ValueError(
+                    f"'{chunk}' is not available in the dataset. "
+                    f"Available columns and filters are: {available_filters}."
+                )
+
+
 def _extract_group_by(query: str, mentions: dict[str, list[str]]) -> list[str]:
     detected: list[str] = []
 
@@ -311,21 +433,21 @@ def _extract_group_by(query: str, mentions: dict[str, list[str]]) -> list[str]:
                 detected.append(column)
 
         if detected:
-            return detected[:2]
+            return _normalize_group_by_columns(detected)
 
     for column, values in mentions.items():
         if len(values) > 1 and column not in detected:
             detected.append(column)
 
     if detected:
-        return detected[:2]
+        return _normalize_group_by_columns(detected)
 
     if any(keyword in query for keyword in ("compare", "comparison", "distribution", "breakdown", "split")):
         for column in _find_columns(query, CATEGORICAL_COLUMNS):
             if column not in detected:
                 detected.append(column)
 
-    return detected[:2]
+    return _normalize_group_by_columns(detected)
 
 
 def _extract_numeric_filters(query: str) -> list[FilterModel]:
@@ -403,11 +525,75 @@ def _extract_metric(query: str, aggregation: str) -> str:
     )
 
 
+def _derive_comparison_metrics(query: str) -> list[str]:
+    derived_metrics: list[str] = []
+
+    if "online" in query and "store" in query:
+        if "spend" in query or "spending" in query:
+            derived_metrics.extend(["avg_online_spend", "avg_store_spend"])
+
+        if (
+            "behavior" in query
+            or "shopping behavior" in query
+            or "order" in query
+            or "orders" in query
+            or "visit" in query
+            or "visits" in query
+        ):
+            derived_metrics.extend(["monthly_online_orders", "monthly_store_visits"])
+
+    return derived_metrics
+
+
+def is_exploratory_query(query: str) -> bool:
+    normalized_query = _normalize_text(query)
+
+    return (
+        any(keyword in normalized_query for keyword in EXPLORATORY_KEYWORDS)
+        or ("dataset" in normalized_query and "insight" in normalized_query)
+        or ("dataset" in normalized_query and "overview" in normalized_query)
+    )
+
+
+def build_exploratory_intents() -> list[IntentModel]:
+    return [
+        IntentModel(
+            metric="avg_online_spend",
+            aggregation="mean",
+            group_by=["city_tier"],
+            filters=[],
+            chart_preference="auto",
+        ),
+        IntentModel(
+            metric="avg_store_spend",
+            aggregation="mean",
+            group_by=["shopping_preference"],
+            filters=[],
+            chart_preference="auto",
+        ),
+        IntentModel(
+            metric="tech_savvy_score",
+            aggregation="mean",
+            group_by=["age"],
+            filters=[],
+            chart_preference="auto",
+        ),
+        IntentModel(
+            metric="age",
+            aggregation="count",
+            group_by=["gender"],
+            filters=[],
+            chart_preference="auto",
+        ),
+    ]
+
+
 def _extract_intent_with_rules(query: str) -> IntentModel:
     normalized_query = _normalize_text(query)
     if not normalized_query:
         raise ValueError("Query must not be empty.")
 
+    _validate_requested_references(normalized_query)
     mentions = _extract_categorical_mentions(normalized_query)
     aggregation = _extract_aggregation(normalized_query)
     group_by = _extract_group_by(normalized_query, mentions)
@@ -457,15 +643,22 @@ def _extract_intent_with_llm(query: str) -> IntentModel:
 
 
 def extract_intent(query: str) -> IntentModel:
+    normalized_query = _normalize_text(query)
+    if not normalized_query:
+        raise ValueError("Query must not be empty.")
+
+    _validate_requested_references(normalized_query)
     llm_error: Exception | None = None
 
     try:
-        return _extract_intent_with_llm(query)
+        intent = _extract_intent_with_llm(query)
+        return _normalize_intent_from_query(normalized_query, intent)
     except (OpenAIError, ValueError) as exc:
         llm_error = exc
 
     try:
-        return _extract_intent_with_rules(query)
+        intent = _extract_intent_with_rules(query)
+        return _normalize_intent_from_query(normalized_query, intent)
     except ValueError as fallback_error:
         if llm_error is None:
             raise
@@ -475,3 +668,34 @@ def extract_intent(query: str) -> IntentModel:
             f"OpenAI error: {llm_error}. "
             f"Fallback error: {fallback_error}"
         ) from fallback_error
+
+
+def expand_comparison_intents(query: str, base_intent: IntentModel) -> list[IntentModel]:
+    normalized_query = _normalize_text(query)
+    if not any(keyword in normalized_query for keyword in COMPARISON_KEYWORDS):
+        return [base_intent]
+
+    derived_metrics = _derive_comparison_metrics(normalized_query)
+    matched_metrics = _find_columns(normalized_query, NUMERIC_COLUMNS)
+    candidate_metrics = [*derived_metrics, *matched_metrics]
+
+    if derived_metrics and ("age group" in normalized_query or "age groups" in normalized_query):
+        candidate_metrics = [metric for metric in candidate_metrics if metric != "age"]
+
+    ordered_metrics: list[str] = []
+
+    seed_metrics = candidate_metrics if candidate_metrics else [base_intent.metric]
+    if base_intent.metric in candidate_metrics or not candidate_metrics:
+        seed_metrics = [base_intent.metric, *candidate_metrics]
+
+    for metric in seed_metrics:
+        if metric not in ordered_metrics:
+            ordered_metrics.append(metric)
+
+    if len(ordered_metrics) <= 1:
+        return [base_intent]
+
+    return [
+        base_intent.model_copy(update={"metric": metric})
+        for metric in ordered_metrics[:4]
+    ]

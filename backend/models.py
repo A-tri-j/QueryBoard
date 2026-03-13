@@ -17,7 +17,7 @@ class IntentModel(BaseModel):
     
 # Chart Model for the structured output of chart planar:
 class ChartSpec(BaseModel):
-    type: Literal["bar","line","scatter","pie"]
+    type: Literal["bar","line","scatter","pie","histogram"]
     title: str
     x: str
     y: str

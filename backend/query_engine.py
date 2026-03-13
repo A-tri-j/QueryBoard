@@ -1,35 +1,33 @@
 import pandas as pd
-from models import IntentModel, FilterModel
-from schema_extractor import df, schema_memory
 
+from models import FilterModel, IntentModel
+from schema_extractor import df
 
 
 def _apply_filters(dataframe: pd.DataFrame, filters: list[FilterModel]) -> pd.DataFrame:
     filtered = dataframe.copy()
 
-    for f in filters:
-        col = f.column
-        val = f.value
+    for item in filters:
+        column = item.column
+        value = item.value
 
-        # Cast value to match column dtype
-        if dataframe[col].dtype in ["int64", "float64"]:
-            val = float(val)
+        if dataframe[column].dtype in ["int64", "float64"]:
+            value = float(value)
 
-        if f.operator == "==":
-            filtered = filtered[filtered[col] == val]
-        elif f.operator == "!=":
-            filtered = filtered[filtered[col] != val]
-        elif f.operator == ">":
-            filtered = filtered[filtered[col] > val]
-        elif f.operator == "<":
-            filtered = filtered[filtered[col] < val]
-        elif f.operator == ">=":
-            filtered = filtered[filtered[col] >= val]
-        elif f.operator == "<=":
-            filtered = filtered[filtered[col] <= val]
+        if item.operator == "==":
+            filtered = filtered[filtered[column] == value]
+        elif item.operator == "!=":
+            filtered = filtered[filtered[column] != value]
+        elif item.operator == ">":
+            filtered = filtered[filtered[column] > value]
+        elif item.operator == "<":
+            filtered = filtered[filtered[column] < value]
+        elif item.operator == ">=":
+            filtered = filtered[filtered[column] >= value]
+        elif item.operator == "<=":
+            filtered = filtered[filtered[column] <= value]
 
     return filtered
-
 
 
 def execute_query(intent: IntentModel) -> tuple[pd.DataFrame, int]:
@@ -38,37 +36,37 @@ def execute_query(intent: IntentModel) -> tuple[pd.DataFrame, int]:
     Returns a tuple of (result_dataframe, total_rows_analyzed).
     """
 
-    # Step 1 — apply filters first
     working_df = _apply_filters(df, intent.filters)
     rows_analyzed = len(working_df)
 
-    # Step 2 — group and aggregate
     if intent.group_by:
-        grouped = working_df.groupby(intent.group_by)[intent.metric]
+        if intent.metric in intent.group_by:
+            raise ValueError(
+                f"Column '{intent.metric}' cannot be used as both the metric and the group-by dimension."
+            )
 
-        if intent.aggregation == "sum":
-            result = grouped.sum()
-        elif intent.aggregation == "mean":
-            result = grouped.mean()
-        elif intent.aggregation == "count":
-            result = grouped.count()
-        elif intent.aggregation == "min":
-            result = grouped.min()
-        elif intent.aggregation == "max":
-            result = grouped.max()
-
-        result = result.reset_index()
-
+        if intent.aggregation == "count":
+            result = (
+                working_df
+                .groupby(intent.group_by)
+                .size()
+                .reset_index(name=intent.metric)
+            )
+        else:
+            result = (
+                working_df
+                .groupby(intent.group_by)[intent.metric]
+                .agg(intent.aggregation)
+                .reset_index()
+            )
     else:
-        # No group_by — compute a single aggregation across entire column
         agg_value = getattr(working_df[intent.metric], intent.aggregation)()
         result = pd.DataFrame({
             intent.metric: [round(float(agg_value), 2)]
         })
 
-    # Step 3 — round numeric results to 2 decimal places
-    for col in result.select_dtypes(include=["float64"]).columns:
-        result[col] = result[col].round(2)
+    for column in result.select_dtypes(include=["float64"]).columns:
+        result[column] = result[column].round(2)
 
     return result, rows_analyzed
 

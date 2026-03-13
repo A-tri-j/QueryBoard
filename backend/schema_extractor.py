@@ -21,6 +21,13 @@ def _load_dataframe() -> pd.DataFrame:
         if converted.notna().sum() > len(data) * 0.8:
             data[col] = converted
 
+    data["age_group"] = pd.cut(
+        data["age"],
+        bins=[17, 24, 34, 44, 54, 64, 120],
+        labels=["18-24", "25-34", "35-44", "45-54", "55-64", "65+"],
+        include_lowest=True
+    ).astype(str)
+
     return data
 
 

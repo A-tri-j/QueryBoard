@@ -44,6 +44,13 @@ def validate_intent(intent: IntentModel) -> str | None:
             f"Numeric columns available: {', '.join(sorted(NUMERIC_COLS))}"
         )
 
+    if intent.metric in intent.group_by:
+        suggestion = " Try grouping by 'age_group' instead of 'age'." if intent.metric == "age" else ""
+        return (
+            f"Column '{intent.metric}' cannot be used as both the metric and the group-by dimension."
+            f"{suggestion}"
+        )
+
     # 2. group_by columns must exist
     for col in intent.group_by:
         if col not in ALL_COLS:
