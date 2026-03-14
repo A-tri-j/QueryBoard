@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react'
-import { useAuthContext } from '@/components/auth/auth-provider'
+import { ArrowRight, AlertCircle, Loader2, Sparkles } from 'lucide-react'
+import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -35,187 +35,228 @@ function GoogleIcon({ className }: { className?: string }) {
 
 export default function LoginPage() {
   const router = useRouter()
-  const { login, loginWithGoogle, error, clearError, isLoading } = useAuthContext()
-  
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
+  const { state, saveMockUser } = useAuth()
+  const [showPrompt, setShowPrompt] = useState(false)
+  const [displayName, setDisplayName] = useState('')
+  const [validationError, setValidationError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    clearError()
+  useEffect(() => {
+    if (!state.isLoading && state.isAuthenticated) {
+      router.replace('/')
+    }
+  }, [router, state.isAuthenticated, state.isLoading])
+
+  const handleContinue = async () => {
+    const trimmedName = displayName.trim()
+    if (trimmedName.length < 2) {
+      setValidationError('Display name must be at least 2 characters.')
+      return
+    }
+
+    setValidationError(null)
     setIsSubmitting(true)
 
-    const success = await login(email, password)
-    
-    if (success) {
-      router.push('/')
+    try {
+      const mockUser = {
+        id: `${trimmedName}_${Date.now()}`,
+        displayName: trimmedName,
+        signedUpAt: new Date().toISOString(),
+      }
+
+      saveMockUser(mockUser)
+      router.replace('/')
+    } finally {
+      setIsSubmitting(false)
     }
-    
-    setIsSubmitting(false)
   }
 
-  const isFormLoading = isSubmitting || isLoading
+  const isBusy = state.isLoading || isSubmitting
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-card relative overflow-hidden">
-        <div className="absolute inset-0 bg-grid-texture" />
-        <div className="relative z-10 flex flex-col justify-center px-12 xl:px-20">
-          <div className="mb-8">
-            <div className="flex items-center gap-3 mb-8">
-              <div className="size-10 rounded-xl bg-primary flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-lg">Q</span>
-              </div>
-              <span className="text-2xl font-bold text-foreground">QueryBoard</span>
-            </div>
-            <h1 className="text-4xl xl:text-5xl font-bold text-foreground mb-4 leading-tight">
-              Ask your data<br />
-              <span className="text-primary">anything</span>
-            </h1>
-            <p className="text-lg text-muted-foreground max-w-md">
-              Transform natural language into powerful insights. 
-              Connect your data and start asking questions in seconds.
-            </p>
-          </div>
-          
-          {/* Animated tagline */}
-          <div className="mt-8 p-4 glass-card rounded-lg max-w-md">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <div className="size-2 rounded-full bg-primary animate-pulse" />
-              <span className="animate-typewriter">Analyzing 2.4M data points...</span>
-            </div>
-          </div>
-        </div>
+    <div className="min-h-screen bg-background bg-grid-texture">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute left-[8%] top-20 h-64 w-64 rounded-full bg-primary/18 blur-3xl" />
+        <div className="absolute right-[10%] top-32 h-72 w-72 rounded-full bg-cyan-400/10 blur-3xl" />
+        <div className="absolute bottom-10 left-1/2 h-80 w-80 -translate-x-1/2 rounded-full bg-indigo-500/10 blur-3xl" />
       </div>
 
-      {/* Right side - Login form */}
-      <div className="w-full lg:w-1/2 flex flex-col">
-        {/* Header with theme toggle */}
-        <div className="flex justify-between items-center p-6">
-          <div className="lg:hidden flex items-center gap-2">
-            <div className="size-8 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-sm">Q</span>
-            </div>
-            <span className="font-bold text-foreground">QueryBoard</span>
-          </div>
-          <div className="ml-auto">
-            <ThemeToggle />
-          </div>
-        </div>
-
-        {/* Form container */}
-        <div className="flex-1 flex items-center justify-center px-6 pb-12">
-          <div className="w-full max-w-sm">
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-foreground mb-2">Welcome back</h2>
-              <p className="text-muted-foreground">Sign in to your account to continue</p>
-            </div>
-
-            {/* Error message */}
-            {error && (
-              <div className="mb-6 p-3 rounded-lg bg-destructive/10 border border-destructive/20 flex items-center gap-2 text-destructive animate-shake">
-                <AlertCircle className="size-4 shrink-0" />
-                <p className="text-sm">{error}</p>
-              </div>
-            )}
-
-            {/* Google sign in */}
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full mb-6 h-11 transition-colors duration-200"
-              onClick={loginWithGoogle}
-              disabled={isFormLoading}
-            >
-              <GoogleIcon className="size-5 mr-2" />
-              Sign in with Google
-            </Button>
-
-            {/* Divider */}
-            <div className="relative mb-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
-                  or continue with email
-                </span>
-              </div>
-            </div>
-
-            {/* Login form */}
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="name@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  disabled={isFormLoading}
-                  className="h-11 transition-colors duration-200"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    disabled={isFormLoading}
-                    className="h-11 pr-10 transition-colors duration-200"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                    tabIndex={-1}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="size-4" />
-                    ) : (
-                      <Eye className="size-4" />
-                    )}
-                  </button>
+      <div className="relative min-h-screen flex">
+        <div className="hidden lg:flex lg:w-1/2 border-r border-border/60">
+          <div className="flex flex-1 flex-col justify-between px-12 py-12 xl:px-20">
+            <div>
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-[0_0_30px_rgba(129,140,248,0.25)]">
+                  <span className="text-lg font-bold">Q</span>
+                </div>
+                <div>
+                  <p className="font-semibold text-foreground">QueryBoard</p>
+                  <p className="text-sm text-muted-foreground">Hackathon Edition</p>
                 </div>
               </div>
 
-              <Button
-                type="submit"
-                className="w-full h-11 transition-all duration-200"
-                disabled={isFormLoading}
-              >
-                {isFormLoading ? (
-                  <>
-                    <Loader2 className="size-4 mr-2 animate-spin" />
-                    Signing in...
-                  </>
-                ) : (
-                  'Sign in'
-                )}
-              </Button>
-            </form>
+              <div className="mt-16 max-w-xl">
+                <p className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs uppercase tracking-[0.22em] text-primary">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Mock Google Sign In
+                </p>
+                <h1 className="mt-6 text-5xl font-bold leading-tight text-foreground">
+                  Start asking better questions with a name and one click.
+                </h1>
+                <p className="mt-5 text-lg leading-8 text-muted-foreground">
+                  No passwords, no setup, no real OAuth round-trip. Tell QueryBoard what to call you,
+                  step into the dashboard, and start demoing your analysis flow immediately.
+                </p>
+              </div>
 
-            {/* Register link */}
-            <p className="mt-6 text-center text-sm text-muted-foreground">
-              {"Don't have an account? "}
-              <Link
-                href="/register"
-                className="text-primary hover:text-primary/80 font-medium transition-colors"
-              >
-                Register
-              </Link>
-            </p>
+              <div className="mt-10 grid gap-4">
+                {[
+                  'Bring in CSV or XLSX files and get a live schema instantly.',
+                  'Ask questions in plain English and get charts back in seconds.',
+                  'Walk judges through a polished experience without auth friction.',
+                ].map((item, index) => (
+                  <div
+                    key={item}
+                    className="glass-card animate-fade-up rounded-2xl px-5 py-4"
+                    style={{ animationDelay: `${index * 100}ms` }}
+                  >
+                    <p className="text-sm text-foreground">{item}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="glass-card max-w-lg rounded-3xl p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Live demo cue</p>
+                  <p className="mt-2 text-lg font-semibold text-foreground">"Compare online spend vs store spend by city tier"</p>
+                </div>
+                <div className="rounded-2xl border border-primary/20 bg-primary/10 px-3 py-2 text-xs text-primary">
+                  Ready to query
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex w-full flex-col lg:w-1/2">
+          <div className="flex items-center justify-between p-6">
+            <Link href="/landing" className="lg:hidden flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+                <span className="text-sm font-bold">Q</span>
+              </div>
+              <span className="font-semibold text-foreground">QueryBoard</span>
+            </Link>
+            <div className="ml-auto">
+              <ThemeToggle />
+            </div>
+          </div>
+
+          <div className="flex flex-1 items-center justify-center px-6 pb-12">
+            <div className="w-full max-w-md">
+              <div className="text-center animate-fade-up">
+                <p className="text-sm uppercase tracking-[0.24em] text-primary/80">Welcome</p>
+                <h2 className="mt-4 text-3xl font-bold text-foreground">Continue with Google</h2>
+                <p className="mt-3 text-base text-muted-foreground">
+                  For the demo, we only need a display name to personalize your workspace.
+                </p>
+              </div>
+
+              <div className="mt-8 glass-card rounded-3xl p-6 animate-fade-up" style={{ animationDelay: '120ms' }}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-12 w-full rounded-2xl border-border/80 bg-background/60 text-foreground transition-all hover:border-primary/40 hover:bg-background/80"
+                  disabled={isBusy}
+                  onClick={() => {
+                    setValidationError(null)
+                    setShowPrompt(true)
+                  }}
+                >
+                  <GoogleIcon className="mr-2 h-5 w-5" />
+                  Continue with Google
+                </Button>
+
+                <p className="mt-4 text-center text-sm text-muted-foreground">
+                  This is a mock sign-in flow for the hackathon demo.
+                </p>
+
+                {showPrompt ? (
+                  <div className="mt-6 rounded-3xl border border-primary/20 bg-primary/8 p-5 backdrop-blur-sm">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-sm uppercase tracking-[0.18em] text-primary/80">Profile setup</p>
+                        <h3 className="mt-2 text-xl font-semibold text-foreground">What should we call you?</h3>
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          We will save this locally and open your dashboard right away.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 space-y-2">
+                      <Label htmlFor="displayName">Display Name</Label>
+                      <Input
+                        id="displayName"
+                        value={displayName}
+                        onChange={(event) => setDisplayName(event.target.value)}
+                        placeholder="Avery Johnson"
+                        autoFocus
+                        disabled={isBusy}
+                        className="h-12 rounded-2xl border-border/80 bg-background/70"
+                      />
+                    </div>
+
+                    {validationError ? (
+                      <div className="mt-4 flex items-center gap-2 rounded-2xl border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                        <AlertCircle className="h-4 w-4 shrink-0" />
+                        <span>{validationError}</span>
+                      </div>
+                    ) : null}
+
+                    <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-11 flex-1 rounded-2xl"
+                        disabled={isBusy}
+                        onClick={() => {
+                          setShowPrompt(false)
+                          setValidationError(null)
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="button"
+                        className="h-11 flex-1 rounded-2xl glow-primary"
+                        disabled={isBusy}
+                        onClick={() => void handleContinue()}
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Saving profile...
+                          </>
+                        ) : (
+                          <>
+                            Continue
+                            <ArrowRight className="h-4 w-4" />
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
+              <p className="mt-6 text-center text-sm text-muted-foreground">
+                Need to see the product first?{' '}
+                <Link href="/landing" className="font-medium text-primary transition-colors hover:text-primary/80">
+                  Explore the landing page
+                </Link>
+              </p>
+            </div>
           </div>
         </div>
       </div>

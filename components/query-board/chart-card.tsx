@@ -28,7 +28,18 @@ interface ChartCardProps {
 }
 
 // Use CSS variable-friendly colors that work with both themes
-const COLORS = ['#818cf8', '#a78bfa', '#c4b5fd', '#6366f1', '#4f46e5']
+const COLORS = [
+  '#6366f1',  // indigo
+  '#f59e0b',  // amber
+  '#10b981',  // emerald
+  '#ef4444',  // red
+  '#3b82f6',  // blue
+  '#8b5cf6',  // violet
+  '#f97316',  // orange
+  '#06b6d4',  // cyan
+  '#ec4899',  // pink
+  '#84cc16',  // lime
+]
 
 export function ChartCard({ chart, index, fullWidth = false }: ChartCardProps) {
   const [showData, setShowData] = useState(false)
@@ -153,6 +164,8 @@ function renderChart(chart: ChartData) {
             axisLine={{ stroke: 'currentColor' }}
             className="text-muted-foreground"
             width={40}
+            domain={['auto', 'auto']}
+            reversed={false}
           />
           <Tooltip content={<CustomTooltip />} />
           {chart.type === 'bar' ? <Legend wrapperStyle={{ paddingTop: '10px', fontSize: '12px' }} /> : null}
@@ -187,16 +200,18 @@ function renderChart(chart: ChartData) {
             axisLine={{ stroke: 'currentColor' }}
             className="text-muted-foreground"
             width={40}
+            domain={['auto', 'auto']}
+            reversed={false}
           />
           <Tooltip content={<CustomTooltip />} />
           <Legend wrapperStyle={{ paddingTop: '10px', fontSize: '12px' }} />
           <Line 
             type="monotone" 
             dataKey={lineKey} 
-            stroke="#818cf8" 
+            stroke={COLORS[0]}
             strokeWidth={2}
-            dot={{ fill: '#818cf8', strokeWidth: 0 }}
-            activeDot={{ r: 6, fill: '#818cf8' }}
+            dot={{ fill: COLORS[0], strokeWidth: 0 }}
+            activeDot={{ r: 6, fill: COLORS[0] }}
           />
         </LineChart>
       )
@@ -227,7 +242,7 @@ function renderChart(chart: ChartData) {
           <Scatter 
             name="Data Points" 
             data={chart.data} 
-            fill="#818cf8"
+            fill={COLORS[0]}
           />
         </ScatterChart>
       )

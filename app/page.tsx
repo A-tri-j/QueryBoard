@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { useQueryStore } from '@/lib/store'
 import { Sidebar } from '@/components/query-board/sidebar'
@@ -11,9 +12,16 @@ import { ErrorState } from '@/components/query-board/error-state'
 import { MobileHeader } from '@/components/query-board/mobile-header'
 
 export default function QueryBoardPage() {
+  const router = useRouter()
   const { state } = useAuth()
   const { status } = useQueryStore()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  useEffect(() => {
+    if (!state.isLoading && !state.isAuthenticated) {
+      router.replace('/landing')
+    }
+  }, [router, state.isAuthenticated, state.isLoading])
 
   if (state.isLoading) {
     return (
@@ -24,7 +32,11 @@ export default function QueryBoardPage() {
   }
 
   if (!state.isAuthenticated) {
-    return null
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-10 h-10 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
+      </div>
+    )
   }
 
   return (

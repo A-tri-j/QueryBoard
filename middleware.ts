@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const PUBLIC_ROUTES = ['/login', '/register', '/auth/callback', '/terms', '/privacy']
+const PUBLIC_ROUTES = [
+  '/login',
+  '/register',
+  '/auth/callback',
+  '/terms',
+  '/privacy',
+  '/landing',
+  '/pricing',
+  '/checkout',
+]
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -9,7 +18,7 @@ export function middleware(request: NextRequest) {
   const isAuthEntryRoute = pathname === '/login' || pathname === '/register'
 
   if (!token && !isPublicRoute) {
-    return NextResponse.redirect(new URL('/login', request.url))
+    return NextResponse.redirect(new URL('/landing', request.url))
   }
 
   if (token && isAuthEntryRoute) {

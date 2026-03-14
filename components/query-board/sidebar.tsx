@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useQueryStore, type QueryHistoryItem } from '@/lib/store'
 import { useAuth } from '@/hooks/useAuth'
+import { UsageBanner } from '@/components/query-board/usage-banner'
 import { 
   BarChart3, 
   LineChart, 
@@ -13,6 +14,7 @@ import {
   Database,
   History,
   LogOut,
+  Trash2,
   X
 } from 'lucide-react'
 
@@ -37,6 +39,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     status,
     loadHistory,
     historyLoaded,
+    deleteHistoryItem,
     sessionId,
     activeFileName,
     activeRowCount,
@@ -213,6 +216,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
                         item={item}
                         collapsed={collapsed}
                         onClick={() => status !== 'loading' && selectHistoryItem(item.query)}
+                        onDelete={() => item.id ? void deleteHistoryItem(item.id) : undefined}
                         disabled={status === 'loading'}
                         index={index}
                       />
@@ -226,6 +230,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
       </div>
 
       <div className="mt-auto border-t border-sidebar-border p-4">
+        <UsageBanner collapsed={collapsed} />
         <button
           type="button"
           onClick={() => {
@@ -250,35 +255,57 @@ function HistoryItem({
   item, 
   collapsed, 
   onClick, 
+  onDelete,
   disabled,
   index 
 }: { 
   item: QueryHistoryItem
   collapsed: boolean
   onClick: () => void
+  onDelete: () => void
   disabled: boolean
   index: number
 }) {
+  const [isHovered, setIsHovered] = useState(false)
   const Icon = chartIcons[item.chartType]
   
   return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={`
-        w-full text-left p-2 rounded-lg glass-card
-        hover:border-primary/30 transition-all
-        disabled:opacity-50 disabled:cursor-not-allowed
-        animate-slide-in-left
-      `}
-      style={{ animationDelay: `${index * 50}ms` }}
+    <div
+      className="relative"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="flex items-center gap-2">
-        <Icon className="w-4 h-4 text-primary shrink-0" />
-        {!collapsed && (
-          <span className="text-sm text-foreground truncate">{item.query}</span>
-        )}
-      </div>
-    </button>
+      {isHovered && item.id ? (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation()
+            onDelete()
+          }}
+          className="absolute right-2 top-2 z-10 rounded-md p-1 text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
+          aria-label="Delete history item"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      ) : null}
+      <button
+        onClick={onClick}
+        disabled={disabled}
+        className={`
+          w-full text-left p-2 rounded-lg glass-card
+          hover:border-primary/30 transition-all
+          disabled:opacity-50 disabled:cursor-not-allowed
+          animate-slide-in-left
+        `}
+        style={{ animationDelay: `${index * 50}ms` }}
+      >
+        <div className="flex items-center gap-2 pr-8">
+          <Icon className="w-4 h-4 text-primary shrink-0" />
+          {!collapsed && (
+            <span className="text-sm text-foreground truncate">{item.query}</span>
+          )}
+        </div>
+      </button>
+    </div>
   )
 }

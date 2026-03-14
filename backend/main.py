@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from pathlib import Path
 from uuid import uuid4
@@ -12,7 +12,12 @@ from openai import OpenAI
 from chart_planner import plan_chart
 from core.middleware import setup_middleware
 from dashboard_planner import build_dashboard_response
-from db.mongodb import get_query_history_collection, get_sessions_collection, mongo_lifespan
+from db.mongodb import (
+    get_query_history_collection,
+    get_sessions_collection,
+    get_usage_collection,
+    mongo_lifespan,
+)
 from intent_extractor import (
     build_exploratory_intents,
     expand_comparison_intents,
@@ -43,6 +48,12 @@ setup_middleware(app)
 app.include_router(auth_router)
 app.include_router(google_auth_router)
 
+TIER_LIMITS = {
+    "free": {"queries": 10, "uploads": 3, "tokens": 1000},
+    "pro": {"queries": 200, "uploads": 20, "tokens": 50000},
+    "ultra": {"queries": None, "uploads": None, "tokens": None},
+}
+
 
 async def _save_query_history(
     query: str,
@@ -66,6 +77,102 @@ async def _save_query_history(
         )
     except Exception:
         pass
+
+
+def _normalize_tier(tier: str | None) -> str:
+    if tier in TIER_LIMITS:
+        return str(tier)
+    return "free"
+
+
+async def _get_usage(user_id: str) -> dict:
+    now = datetime.now(timezone.utc)
+    tomorrow = now.date() + timedelta(days=1)
+    reset_at = datetime.combine(
+        tomorrow,
+        datetime.min.time(),
+        tzinfo=timezone.utc,
+    )
+
+    usage = await get_usage_collection().find_one({"user_id": user_id})
+    if not usage:
+        usage = {
+            "user_id": user_id,
+            "tier": "free",
+            "queries_used": 0,
+            "uploads_used": 0,
+            "tokens_used": 0,
+            "reset_at": reset_at,
+        }
+        await get_usage_collection().insert_one(usage)
+        return usage
+
+    usage_tier = _normalize_tier(usage.get("tier"))
+    usage_reset_at = usage.get("reset_at")
+    if isinstance(usage_reset_at, datetime) and usage_reset_at.tzinfo is None:
+        usage_reset_at = usage_reset_at.replace(tzinfo=timezone.utc)
+
+    if not isinstance(usage_reset_at, datetime) or usage_reset_at <= now:
+        usage.update(
+            {
+                "tier": usage_tier,
+                "queries_used": 0,
+                "uploads_used": 0,
+                "tokens_used": 0,
+                "reset_at": reset_at,
+            }
+        )
+        await get_usage_collection().update_one(
+            {"user_id": user_id},
+            {
+                "$set": {
+                    "tier": usage_tier,
+                    "queries_used": 0,
+                    "uploads_used": 0,
+                    "tokens_used": 0,
+                    "reset_at": reset_at,
+                }
+            },
+            upsert=True,
+        )
+        return usage
+
+    usage.setdefault("queries_used", 0)
+    usage.setdefault("uploads_used", 0)
+    usage.setdefault("tokens_used", 0)
+    usage["tier"] = usage_tier
+    return usage
+
+
+def _is_usage_limit_reached(tier: str, used: int, usage_type: str) -> bool:
+    limit = TIER_LIMITS.get(tier, TIER_LIMITS["free"]).get(usage_type)
+    return limit is not None and used >= limit
+
+
+def _limit_message(tier: str, usage_type: str) -> str:
+    if usage_type == "tokens":
+        return (
+            "Daily token limit reached. Upgrade to Ultra for more LLM usage."
+            if tier == "pro"
+            else "Daily token limit reached. Upgrade to Pro for more LLM usage."
+        )
+
+    if usage_type == "queries":
+        return (
+            "Daily query limit reached. Upgrade to Ultra for more queries."
+            if tier == "pro"
+            else "Daily query limit reached. Upgrade to Pro for more queries."
+        )
+
+    return (
+        "Daily upload limit reached. Upgrade to Ultra for more uploads."
+        if tier == "pro"
+        else "Daily upload limit reached. Upgrade to Pro for more uploads."
+    )
+
+
+def _estimate_tokens_for_query(query: str) -> int:
+    return max(50, len(query.split()) * 12)
 
 
 def _build_multi_chart_summary(query: str, charts: list, rows_analyzed: int) -> str:
@@ -136,6 +243,28 @@ def _normalize_uploaded_dataframe(dataframe: pd.DataFrame) -> pd.DataFrame:
     for column in normalized.columns:
         converted = pd.to_numeric(normalized[column], errors="coerce")
         if converted.notna().sum() > len(normalized) * 0.8:
+            normalized[column] = converted
+
+    # Second pass: try European number format for remaining object columns
+    # Use 0.5 threshold instead of 0.8 to handle small datasets (e.g. 20 rows)
+    for column in normalized.columns:
+        if normalized[column].dtype != object:
+            continue
+
+        def _parse_european(val: object) -> object:
+            try:
+                if isinstance(val, str):
+                    # "1.045.246" -> remove dots -> "1045246" -> float
+                    # "1.045,25" -> remove dots, replace comma -> "1045.25" -> float
+                    cleaned = val.replace(".", "").replace(",", ".")
+                    return float(cleaned)
+                return val
+            except (ValueError, AttributeError):
+                return val
+
+        converted = normalized[column].apply(_parse_european)
+        converted = pd.to_numeric(converted, errors="coerce")
+        if converted.notna().sum() > len(normalized) * 0.5:
             normalized[column] = converted
 
     # Probe every column with pyarrow — catches int64/float64 cols that
@@ -232,6 +361,14 @@ def health_check():
 
 @app.post("/api/upload")
 async def upload_dataset(file: UploadFile = File(...)):
+    usage = await _get_usage("anonymous")
+    tier = _normalize_tier(usage.get("tier"))
+    if _is_usage_limit_reached(tier, usage.get("uploads_used", 0), "uploads"):
+        raise HTTPException(
+            status_code=429,
+            detail=_limit_message(tier, "uploads"),
+        )
+
     filename = file.filename or ""
     if not filename:
         raise HTTPException(status_code=400, detail="Uploaded file must have a filename.")
@@ -271,12 +408,44 @@ async def upload_dataset(file: UploadFile = File(...)):
             "created_at": datetime.now(timezone.utc),
         }
     )
+    await get_usage_collection().update_one(
+        {"user_id": "anonymous"},
+        {"$inc": {"uploads_used": 1}},
+        upsert=True,
+    )
 
     return {
         "session_id": session_id,
         "row_count": schema["row_count"],
         "columns": schema["column_names"],
     }
+
+
+@app.get("/api/usage")
+async def get_usage(user_id: str = "anonymous"):
+    usage = await _get_usage(user_id)
+    usage["id"] = str(usage.pop("_id", ""))
+    if hasattr(usage.get("reset_at"), "isoformat"):
+        usage["reset_at"] = usage["reset_at"].isoformat()
+    return usage
+
+
+@app.post("/api/usage/upgrade")
+async def upgrade_tier(body: dict):
+    user_id = str(body.get("user_id", "anonymous"))
+    tier = _normalize_tier(body.get("tier"))
+    usage = await _get_usage(user_id)
+    await get_usage_collection().update_one(
+        {"user_id": user_id},
+        {
+            "$set": {
+                "tier": tier,
+                "reset_at": usage["reset_at"],
+            }
+        },
+        upsert=True,
+    )
+    return {"upgraded": True, "tier": tier}
 
 
 @app.get("/api/history")
@@ -297,9 +466,44 @@ async def get_history():
         return {"items": []}
 
 
+@app.delete("/api/history/{item_id}")
+async def delete_history_item(item_id: str):
+    try:
+        from bson import ObjectId
+
+        result = await get_query_history_collection().delete_one(
+            {"_id": ObjectId(item_id)}
+        )
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail="History item not found.")
+        return {"deleted": True}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 @app.post("/api/query", response_model=QueryResponse)
 async def handle_query(request: QueryRequest, background_tasks: BackgroundTasks):
     query = request.query.strip()
+    usage = await _get_usage("anonymous")
+    tier = _normalize_tier(usage.get("tier"))
+    if _is_usage_limit_reached(tier, usage.get("queries_used", 0), "queries"):
+        raise HTTPException(
+            status_code=429,
+            detail=_limit_message(tier, "queries"),
+        )
+    estimated_tokens = _estimate_tokens_for_query(query)
+    if _is_usage_limit_reached(
+        tier,
+        usage.get("tokens_used", 0) + estimated_tokens,
+        "tokens",
+    ):
+        raise HTTPException(
+            status_code=429,
+            detail=_limit_message(tier, "tokens"),
+        )
+
     _validate_query_input(query)
 
     dataframe = default_df
@@ -313,6 +517,11 @@ async def handle_query(request: QueryRequest, background_tasks: BackgroundTasks)
         dashboard_response = build_dashboard_response(query)
         if dashboard_response is not None:
             charts, rows_analyzed, summary = dashboard_response
+            await get_usage_collection().update_one(
+                {"user_id": "anonymous"},
+                {"$inc": {"queries_used": 1, "tokens_used": estimated_tokens}},
+                upsert=True,
+            )
             background_tasks.add_task(
                 _save_query_history,
                 query,
@@ -385,6 +594,11 @@ async def handle_query(request: QueryRequest, background_tasks: BackgroundTasks)
     else:
         summary = _build_multi_chart_summary(query, charts, rows_analyzed)
 
+    await get_usage_collection().update_one(
+        {"user_id": "anonymous"},
+        {"$inc": {"queries_used": 1, "tokens_used": estimated_tokens}},
+        upsert=True,
+    )
     background_tasks.add_task(
         _save_query_history,
         query,

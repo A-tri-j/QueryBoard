@@ -54,6 +54,7 @@ interface QueryStore {
   clearActiveSession: () => void
   submitQuery: (query: string, sessionId?: string | null) => Promise<void>
   loadHistory: () => Promise<void>
+  deleteHistoryItem: (id: string) => Promise<void>
   clearDashboard: () => void
   selectHistoryItem: (query: string) => void
 }
@@ -131,7 +132,7 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
 
   setQuery: (query) => set({ query }),
 
-  setActiveSession: (sessionId, fileName, rowCount, columnCount) =>
+  setActiveSession: (sessionId, fileName, rowCount, columnCount) => {
     set({
       sessionId,
       activeFileName: fileName,
@@ -141,7 +142,12 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
       dashboardData: null,
       errorMessage: null,
       lastQuery: '',
-    }),
+    })
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('qb-usage-refresh'))
+    }
+  },
 
   clearActiveSession: () =>
     set({
@@ -179,6 +185,9 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
       const payload = await response.json().catch(() => null)
 
       if (!response.ok) {
+        if (response.status === 429 && typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('qb-usage-refresh'))
+        }
         throw new Error(formatErrorMessage(payload))
       }
 
@@ -208,6 +217,9 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
         errorMessage: null,
         query: '',
       })
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('qb-usage-refresh'))
+      }
       void get().loadHistory()
     } catch (error) {
       set({
@@ -251,6 +263,30 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
       set({ queryHistory: items, historyLoaded: true })
     } catch {
       // silently fail — history is non-critical
+    }
+  },
+
+  deleteHistoryItem: async (id) => {
+    const existingItems = get().queryHistory
+    const itemToRestore = existingItems.find((item) => item.id === id)
+
+    set({
+      queryHistory: existingItems.filter((item) => item.id !== id),
+    })
+
+    try {
+      const response = await fetch(`/api/history/${id}`, { method: 'DELETE' })
+      if (!response.ok && itemToRestore) {
+        set((state) => ({
+          queryHistory: [itemToRestore, ...state.queryHistory.filter((item) => item.id !== id)],
+        }))
+      }
+    } catch {
+      if (itemToRestore) {
+        set((state) => ({
+          queryHistory: [itemToRestore, ...state.queryHistory.filter((item) => item.id !== id)],
+        }))
+      }
     }
   },
 

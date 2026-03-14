@@ -172,8 +172,15 @@ def _normalize_text(text: str) -> str:
 
 
 def _default_aliases(column: str) -> set[str]:
-    words = column.split("_")
+    import re as _re
+    # Split on underscores AND on CamelCase boundaries
+    # "GoalsScored" -> ["Goals", "Scored"]
+    # "avg_online_spend" -> ["avg", "online", "spend"]
+    # "MatchesPlayed" -> ["Matches", "Played"]
+    camel_split = _re.sub(r'(?<=[a-z])(?=[A-Z])', '_', column)
+    words = camel_split.split("_")
     aliases = {" ".join(words)}
+    aliases.add(_normalize_text(" ".join(words)))  # normalized lowercase version
 
     if words[0] in {"avg", "monthly", "daily"} and len(words) > 1:
         aliases.add(" ".join(words[1:]))
@@ -830,17 +837,47 @@ def extract_intent(query: str, schema: dict) -> IntentModel:
 
 def expand_comparison_intents(query: str, base_intent: IntentModel, schema: dict) -> list[IntentModel]:
     normalized_query = _normalize_text(query)
-    if not any(keyword in normalized_query for keyword in COMPARISON_KEYWORDS):
-        return [base_intent]
-
     schema_context = _build_schema_context(schema)
-    derived_metrics = _derive_comparison_metrics(normalized_query, schema_context)
+
+    has_comparison_keyword = any(
+        keyword in normalized_query for keyword in COMPARISON_KEYWORDS
+    )
+
+    # Detect multiple numeric metrics joined by "and"
+    # e.g. "goals scored and attendance and matches played per year"
+    # _find_columns returns metrics ranked by match score
     matched_metrics = _find_columns(
         normalized_query,
         schema_context["numeric_columns"],
         schema_context["column_aliases"],
     )
-    candidate_metrics = [*derived_metrics, *matched_metrics]
+    has_multiple_metrics = len(matched_metrics) >= 2
+
+    # If neither condition met, single intent
+    if not has_comparison_keyword and not has_multiple_metrics:
+        return [base_intent]
+
+    # If multiple metrics detected via "and" (no comparison keyword),
+    # build one intent per matched metric directly.
+    # Exclude any column already used as group_by to avoid the
+    # "cannot be used as both metric and group-by" validation error.
+    if not has_comparison_keyword and has_multiple_metrics:
+        group_by_cols = set(base_intent.group_by)
+        filtered_metrics = [m for m in matched_metrics if m not in group_by_cols]
+        if not filtered_metrics:
+            return [base_intent]
+        return [
+            base_intent.model_copy(update={"metric": metric})
+            for metric in filtered_metrics[:4]
+        ]
+
+    derived_metrics = _derive_comparison_metrics(normalized_query, schema_context)
+    matched_metrics_for_comparison = _find_columns(
+        normalized_query,
+        schema_context["numeric_columns"],
+        schema_context["column_aliases"],
+    )
+    candidate_metrics = [*derived_metrics, *matched_metrics_for_comparison]
 
     if derived_metrics and ("age group" in normalized_query or "age groups" in normalized_query):
         candidate_metrics = [metric for metric in candidate_metrics if metric != "age"]
