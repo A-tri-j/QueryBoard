@@ -90,7 +90,7 @@ export default function PricingPage() {
                   </div>
                 ) : null}
 
-                <div className="flex min-h-[280px] flex-col">
+                <div className="flex min-h-70 flex-col">
                   <div>
                     <h2 className="text-2xl font-semibold text-foreground">{config.label}</h2>
                     <div className="mt-3 flex items-end gap-2">

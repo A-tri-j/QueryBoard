@@ -74,6 +74,7 @@ export default function LandingPage() {
       </div>
 
       <div className="relative z-10">
+        {/* ── Header ────────────────────────────────────────────────────── */}
         <header className="sticky top-0 z-20 border-b border-border/50 bg-background/70 backdrop-blur-xl">
           <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
             <Link href="/landing" className="flex items-center gap-3">
@@ -98,6 +99,7 @@ export default function LandingPage() {
           </div>
         </header>
 
+        {/* ── Hero ──────────────────────────────────────────────────────── */}
         <section className="mx-auto grid max-w-7xl gap-12 px-6 pb-16 pt-16 lg:grid-cols-[1.08fr_0.92fr] lg:items-center lg:pt-24">
           <div className="max-w-3xl">
             <p className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-xs uppercase tracking-[0.26em] text-primary animate-fade-up">
@@ -109,12 +111,18 @@ export default function LandingPage() {
                 Ask Anything About Your Data
               </span>
             </h1>
-            <p className="mt-6 max-w-2xl animate-fade-up text-lg leading-8 text-muted-foreground" style={{ animationDelay: '120ms' }}>
+            <p
+              className="mt-6 max-w-2xl animate-fade-up text-lg leading-8 text-muted-foreground"
+              style={{ animationDelay: '120ms' }}
+            >
               Upload any CSV or Excel file and get instant charts, insights, and analysis powered by AI.
               QueryBoard turns your spreadsheet into a demo-ready dashboard in minutes.
             </p>
 
-            <div className="mt-8 flex animate-fade-up flex-col gap-3 sm:flex-row" style={{ animationDelay: '220ms' }}>
+            <div
+              className="mt-8 flex animate-fade-up flex-col gap-3 sm:flex-row"
+              style={{ animationDelay: '220ms' }}
+            >
               <Button asChild size="lg" className="rounded-full px-7 glow-primary">
                 <Link href="/login">
                   Start for Free
@@ -144,12 +152,15 @@ export default function LandingPage() {
             </div>
           </div>
 
+          {/* ── Mock dashboard preview ───────────────────────────────── */}
           <div className="relative animate-fade-up" style={{ animationDelay: '180ms' }}>
             <div className="absolute -left-6 top-12 h-24 w-24 rounded-full bg-cyan-300/15 blur-2xl" />
             <div className="glass-card relative overflow-hidden rounded-[2rem] border border-primary/15 p-5 shadow-[0_20px_100px_rgba(0,0,0,0.35)]">
               <div className="flex items-center justify-between border-b border-border/60 pb-4">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">Mock Dashboard Preview</p>
+                  <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+                    Mock Dashboard Preview
+                  </p>
                   <h2 className="mt-2 text-xl font-semibold text-foreground">Retail Spending Overview</h2>
                 </div>
                 <div className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs text-primary">
@@ -164,13 +175,15 @@ export default function LandingPage() {
                 </div>
               </div>
 
-              <div className="mt-5 grid gap-4 lg:grid-cols-[0.92fr_1.08fr]">
-                <div className="rounded-3xl border border-border/70 bg-background/70 p-4">
+              {/* ── Fixed grid: left card + right column ──────────────── */}
+              <div className="mt-5 grid gap-4 lg:grid-cols-[0.92fr_1.08fr] lg:items-stretch">
+                {/* Left — bar chart */}
+                <div className="flex flex-col rounded-3xl border border-border/70 bg-background/70 p-4">
                   <div className="flex items-center gap-2">
                     <BarChart3 className="h-4 w-4 text-primary" />
                     <p className="text-sm font-medium text-foreground">Average Spend by City Tier</p>
                   </div>
-                  <div className="mt-4 flex h-44 items-end gap-3">
+                  <div className="mt-4 flex flex-1 items-end gap-3 min-h-[11rem]">
                     {[64, 92, 78, 104].map((height, index) => (
                       <div key={height} className="flex flex-1 flex-col items-center gap-2">
                         <div
@@ -185,25 +198,27 @@ export default function LandingPage() {
                   </div>
                 </div>
 
-                <div className="space-y-4">
+                {/* Right — trend + AI summary stacked to fill height */}
+                <div className="flex flex-col gap-4">
                   <div className="rounded-3xl border border-border/70 bg-background/70 p-4">
                     <div className="flex items-center gap-2">
                       <LineChart className="h-4 w-4 text-cyan-300" />
                       <p className="text-sm font-medium text-foreground">Trend Snapshot</p>
                     </div>
-                    <div className="mt-5 flex h-28 items-end gap-2">
+                    <div className="mt-5 flex h-20 items-end gap-2">
                       {[20, 38, 30, 48, 42, 60, 55].map((point, index) => (
                         <div key={index} className="flex flex-1 items-end">
                           <div
                             className="h-2 w-full rounded-full bg-gradient-to-r from-cyan-300 to-primary"
-                            style={{ transform: `translateY(${68 - point}px)` }}
+                            style={{ transform: `translateY(${56 - point}px)` }}
                           />
                         </div>
                       ))}
                     </div>
                   </div>
 
-                  <div className="rounded-3xl border border-border/70 bg-background/70 p-4">
+                  {/* flex-1 makes this card expand to match the bar chart height */}
+                  <div className="flex-1 rounded-3xl border border-border/70 bg-background/70 p-4">
                     <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">AI summary</p>
                     <p className="mt-3 text-sm leading-7 text-foreground">
                       Tier 1 cities show the highest average online spend, while store behavior stays steadier
@@ -216,6 +231,7 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* ── Features ──────────────────────────────────────────────────── */}
         <section className="mx-auto max-w-7xl px-6 py-16">
           <div className="max-w-2xl">
             <p className="text-sm uppercase tracking-[0.24em] text-primary/80">Features</p>
@@ -244,6 +260,7 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* ── How it works ──────────────────────────────────────────────── */}
         <section className="mx-auto max-w-7xl px-6 py-16">
           <div className="max-w-2xl">
             <p className="text-sm uppercase tracking-[0.24em] text-primary/80">How It Works</p>
@@ -268,6 +285,7 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* ── Pricing preview ───────────────────────────────────────────── */}
         <section className="mx-auto max-w-7xl px-6 py-16">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="max-w-2xl">
@@ -325,6 +343,7 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* ── Footer ────────────────────────────────────────────────────── */}
         <footer className="border-t border-border/50 px-6 py-10">
           <div className="mx-auto flex max-w-7xl flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -341,8 +360,12 @@ export default function LandingPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-              <Link href="/pricing" className="transition-colors hover:text-foreground">Pricing</Link>
-              <Link href="/login" className="transition-colors hover:text-foreground">Login</Link>
+              <Link href="/pricing" className="transition-colors hover:text-foreground">
+                Pricing
+              </Link>
+              <Link href="/login" className="transition-colors hover:text-foreground">
+                Login
+              </Link>
             </div>
           </div>
         </footer>
