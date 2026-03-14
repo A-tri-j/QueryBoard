@@ -11,7 +11,7 @@ class FilterModel(BaseModel):
 
 class IntentModel(BaseModel):
     metric: str
-    aggregation: Literal["sum", "mean", "count", "min", "max"]
+    aggregation: Literal["sum", "mean", "count", "min", "max", "nunique"]
     group_by: list[str]
     filters: list[FilterModel] = []
     chart_preference: Literal["auto", "bar", "line", "scatter", "pie"] = "auto"
@@ -28,6 +28,7 @@ class ChartSpec(BaseModel):
 
 class QueryRequest(BaseModel):
     query: str
+    session_id: str | None = None
 
     @field_validator("query")
     @classmethod

@@ -27,33 +27,36 @@ async function parseResponsePayload(response: Response): Promise<unknown> {
 }
 
 export async function POST(request: Request) {
-  const payload = (await request.json().catch(() => null)) as
-    | { query?: string; session_id?: string | null }
-    | null
+  const incomingFormData = await request.formData()
+  const file = incomingFormData.get('file')
+
+  if (!(file instanceof File)) {
+    return NextResponse.json(
+      { detail: 'A file upload is required.' },
+      { status: 400 },
+    )
+  }
+
+  const formData = new FormData()
+  formData.append('file', file)
 
   try {
-    const backendResponse = await fetch(buildBackendUrl('/api/query'), {
+    const backendResponse = await fetch(buildBackendUrl('/api/upload'), {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        query: payload?.query ?? '',
-        session_id: payload?.session_id ?? null,
-      }),
+      body: formData,
       cache: 'no-store',
     })
 
-    const responsePayload = await parseResponsePayload(backendResponse)
+    const payload = await parseResponsePayload(backendResponse)
 
     if (!backendResponse.ok) {
       return NextResponse.json(
-        responsePayload ?? { detail: 'Backend request failed.' },
+        payload ?? { detail: 'Backend upload failed.' },
         { status: backendResponse.status },
       )
     }
 
-    return NextResponse.json(responsePayload, { status: backendResponse.status })
+    return NextResponse.json(payload, { status: backendResponse.status })
   } catch (error) {
     const detail = error instanceof Error ? error.message : 'Unknown connection error.'
 

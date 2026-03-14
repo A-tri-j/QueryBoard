@@ -2,40 +2,92 @@ import json
 import os
 import re
 from pathlib import Path
+from typing import Any
 
 from dotenv import load_dotenv
 from openai import OpenAI, OpenAIError
 
 from models import FilterModel, IntentModel
-from schema_extractor import schema_memory
 
 load_dotenv(dotenv_path=Path(__file__).with_name(".env"))
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-NUMERIC_COLUMNS = [
-    col["name"]
-    for col in schema_memory["columns"]
-    if col["type"] == "numeric"
-]
-CATEGORICAL_COLUMNS = [
-    col["name"]
-    for col in schema_memory["columns"]
-    if col["type"] == "categorical"
-]
-ALL_COLUMNS = NUMERIC_COLUMNS + CATEGORICAL_COLUMNS
+
+def _fuzzy_match_column(value: str, all_columns: list[str]) -> str | None:
+    """
+    Fuzzy-matches a natural language column reference to an actual column name.
+    Returns the best match column name, or None if no confident match found.
+    """
+    import re as _re
+
+    def _norm(s: str) -> str:
+        return _re.sub(r"[^a-z0-9]", "", s.lower())
+
+    norm_value = _norm(value)
+    if not norm_value:
+        return None
+
+    # 1. Exact normalized match (e.g. "position" -> "Position")
+    for col in all_columns:
+        if _norm(col) == norm_value:
+            return col
+
+    # 2. Value is substring of normalized column (e.g. "team" in "teaminitials")
+    for col in all_columns:
+        if norm_value in _norm(col):
+            return col
+
+    # 3. All tokens of value appear in column tokens
+    # (e.g. "line up" -> tokens ["line","up"] both in "Line-up" tokens ["line","up"])
+    value_tokens = _re.sub(r"[^a-z0-9 ]", " ", value.lower()).split()
+    for col in all_columns:
+        col_tokens = _re.sub(r"[^a-z0-9 ]", " ", col.lower()).split()
+        if value_tokens and all(
+            any(vt in ct for ct in col_tokens) for vt in value_tokens
+        ):
+            return col
+
+    return None
 
 
-def _build_system_prompt() -> str:
+def _correct_intent_columns(intent: IntentModel, all_columns: list[str]) -> IntentModel:
+    """
+    Post-processes an IntentModel to correct any column names that don't exactly
+    match the schema by fuzzy-matching them to the closest real column.
+    Only corrects fields that don't already exist in all_columns.
+    """
+
+    def _correct(value: str) -> str:
+        if value in all_columns:
+            return value
+        match = _fuzzy_match_column(value, all_columns)
+        return match if match else value
+
+    corrected_metric = _correct(intent.metric)
+    corrected_group_by = [_correct(col) for col in intent.group_by]
+    corrected_filters = [
+        filter_item.model_copy(update={"column": _correct(filter_item.column)})
+        for filter_item in intent.filters
+    ]
+
+    return intent.model_copy(update={
+        "metric": corrected_metric,
+        "group_by": corrected_group_by,
+        "filters": corrected_filters,
+    })
+
+
+def _build_system_prompt(schema: dict) -> str:
     numeric_cols = [
         f"  - {col['name']} (numeric, range: {col['min']} to {col['max']})"
-        for col in schema_memory["columns"]
+        for col in schema["columns"]
         if col["type"] == "numeric"
     ]
 
     categorical_cols = [
         f"  - {col['name']} (categorical, values: {', '.join(str(v) for v in col['values'])})"
-        for col in schema_memory["columns"]
+        for col in schema["columns"]
         if col["type"] == "categorical"
     ]
 
@@ -44,9 +96,9 @@ You are a data analyst assistant. Your job is to convert a natural language ques
 into a structured JSON object that describes what data to retrieve and how to visualize it.
 
 DATASET SCHEMA:
-The dataset has {schema_memory['row_count']} rows.
+The dataset has {schema['row_count']} rows.
 
-Numeric columns (these can be aggregated with sum, mean, count, min, max):
+Numeric columns (these can be aggregated with sum, mean, count, nunique, min, max):
 {chr(10).join(numeric_cols)}
 
 Categorical columns (these can be used for grouping and filtering):
@@ -57,7 +109,7 @@ Return a single valid JSON object with exactly these fields:
 
 {{
   "metric": "<a numeric column name to aggregate>",
-  "aggregation": "<one of: sum, mean, count, min, max>",
+  "aggregation": "<one of: sum, mean, count, nunique, min, max>",
   "group_by": ["<categorical or numeric column name>"],
   "filters": [
     {{
@@ -77,6 +129,7 @@ STRICT RULES:
 5. chart_preference should be "auto" unless the user explicitly asks for a chart type.
 6. Return ONLY the JSON object. No explanation, no markdown, no code blocks.
 7. Do not invent column names. Only use columns listed in the schema above.
+8. Use 'nunique' when the query asks for unique, distinct, or different values.
 
 EXAMPLES:
 
@@ -112,9 +165,6 @@ Output:
 """
 
 
-SYSTEM_PROMPT = _build_system_prompt()
-
-
 def _normalize_text(text: str) -> str:
     normalized = text.lower().replace("_", " ")
     normalized = re.sub(r"[^a-z0-9\s]+", " ", normalized)
@@ -140,10 +190,11 @@ def _default_aliases(column: str) -> set[str]:
     return {_normalize_text(alias) for alias in aliases if alias}
 
 
-def _build_column_aliases() -> dict[str, set[str]]:
+
+def _build_column_aliases(columns: list[str]) -> dict[str, set[str]]:
     alias_map = {
         column: _default_aliases(column)
-        for column in ALL_COLUMNS
+        for column in columns
     }
 
     manual_aliases = {
@@ -175,12 +226,33 @@ def _build_column_aliases() -> dict[str, set[str]]:
     }
 
     for column, aliases in manual_aliases.items():
-        alias_map[column].update(_normalize_text(alias) for alias in aliases)
+        if column in alias_map:
+            alias_map[column].update(_normalize_text(alias) for alias in aliases)
 
     return alias_map
 
 
-COLUMN_ALIASES = _build_column_aliases()
+def _build_schema_context(schema: dict) -> dict[str, Any]:
+    numeric_columns = [
+        column["name"]
+        for column in schema["columns"]
+        if column["type"] == "numeric"
+    ]
+    categorical_columns = [
+        column["name"]
+        for column in schema["columns"]
+        if column["type"] == "categorical"
+    ]
+    all_columns = numeric_columns + categorical_columns
+
+    return {
+        "schema": schema,
+        "numeric_columns": numeric_columns,
+        "categorical_columns": categorical_columns,
+        "all_columns": all_columns,
+        "column_aliases": _build_column_aliases(all_columns),
+        "system_prompt": _build_system_prompt(schema),
+    }
 
 CATEGORICAL_VALUE_ALIASES = {
     "gender": {
@@ -273,21 +345,25 @@ EXPLORATORY_KEYWORDS = (
 )
 
 
-def _column_score(text: str, column: str) -> int:
+def _column_score(text: str, column: str, column_aliases: dict[str, set[str]]) -> int:
     best_score = 0
 
-    for alias in COLUMN_ALIASES[column]:
+    for alias in column_aliases[column]:
         if re.search(rf"\b{re.escape(alias)}\b", text):
             best_score = max(best_score, len(alias.split()))
 
     return best_score
 
 
-def _find_columns(text: str, columns: list[str]) -> list[str]:
+def _find_columns(
+    text: str,
+    columns: list[str],
+    column_aliases: dict[str, set[str]],
+) -> list[str]:
     matches = []
 
     for column in columns:
-        score = _column_score(text, column)
+        score = _column_score(text, column, column_aliases)
         if score:
             matches.append((score, column))
 
@@ -297,6 +373,19 @@ def _find_columns(text: str, columns: list[str]) -> list[str]:
 
 def _extract_aggregation(query: str) -> str:
     patterns = (
+        (
+            "nunique",
+            (
+                r"\bunique\b",
+                r"\bdistinct\b",
+                r"\bhow many different\b",
+                r"\bnumber of different\b",
+                r"\bdifferent\b.*\bcount\b",
+                r"\bcount.*\bdifferent\b",
+                r"\bcount.*\bunique\b",
+                r"\bunique.*\bcount\b",
+            ),
+        ),
         ("count", (r"\bhow many\b", r"\bnumber of\b", r"\bcount\b")),
         ("sum", (r"\btotal\b", r"\bsum\b")),
         ("mean", (r"\baverage\b", r"\bavg\b", r"\bmean\b")),
@@ -326,10 +415,13 @@ def _extract_chart_preference(query: str) -> str:
     return "auto"
 
 
-def _extract_categorical_mentions(query: str) -> dict[str, list[str]]:
+def _extract_categorical_mentions(query: str, schema_context: dict[str, Any]) -> dict[str, list[str]]:
     mentions: dict[str, list[str]] = {}
 
     for column, alias_map in CATEGORICAL_VALUE_ALIASES.items():
+        if column not in schema_context["categorical_columns"]:
+            continue
+
         detected_values: list[str] = []
 
         for alias, canonical_value in alias_map.items():
@@ -350,11 +442,47 @@ def _has_meaningful_tokens(chunk: str) -> bool:
     )
 
 
-def _supports_reference(chunk: str) -> bool:
+def _fuzzy_matches_any_column(chunk: str, all_columns: list[str]) -> bool:
+    """
+    Returns True if the chunk loosely refers to any real column name.
+    Handles cases like "team" matching "Team Initials", "lineup" matching "Line-up",
+    "shirt" matching "Shirt Number", "match" matching "MatchID" etc.
+    """
+    import re as _re
+
+    def _norm(s: str) -> str:
+        return _re.sub(r"[^a-z0-9]", "", s.lower())
+
+    norm_chunk = _norm(chunk)
+    if not norm_chunk or len(norm_chunk) < 3:
+        return False
+
+    for col in all_columns:
+        norm_col = _norm(col)
+        # chunk is substring of column: "team" in "teaminitials"
+        if norm_chunk in norm_col:
+            return True
+        # column is substring of chunk: "position" in "playerposition"
+        if norm_col in norm_chunk:
+            return True
+        # all words of chunk appear in column tokens
+        chunk_tokens = _re.sub(r"[^a-z0-9 ]", " ", chunk.lower()).split()
+        col_tokens = _re.sub(r"[^a-z0-9 ]", " ", col.lower()).split()
+        if chunk_tokens and all(
+            any(ct.startswith(tk) or tk in ct for ct in col_tokens)
+            for tk in chunk_tokens
+        ):
+            return True
+
+    return False
+
+
+def _supports_reference(chunk: str, schema_context: dict[str, Any]) -> bool:
     return bool(
-        _find_columns(chunk, ALL_COLUMNS)
-        or _extract_categorical_mentions(chunk)
-        or _extract_numeric_filters(chunk)
+        _find_columns(chunk, schema_context["all_columns"], schema_context["column_aliases"])
+        or _extract_categorical_mentions(chunk, schema_context)
+        or _extract_numeric_filters(chunk, schema_context)
+        or _fuzzy_matches_any_column(chunk, schema_context["all_columns"])
     )
 
 
@@ -371,10 +499,15 @@ def _normalize_group_by_columns(columns: list[str]) -> list[str]:
     return normalized_columns[:2]
 
 
-def _normalize_intent_from_query(query: str, intent: IntentModel) -> IntentModel:
+def _normalize_intent_from_query(
+    query: str,
+    intent: IntentModel,
+    schema_context: dict[str, Any],
+) -> IntentModel:
     normalized_group_by = _normalize_group_by_columns(intent.group_by)
 
-    if any(alias in query for alias in COLUMN_ALIASES["age_group"]):
+    age_group_aliases = schema_context["column_aliases"].get("age_group", set())
+    if any(alias in query for alias in age_group_aliases):
         normalized_group_by = [
             "age_group",
             *[
@@ -387,9 +520,9 @@ def _normalize_intent_from_query(query: str, intent: IntentModel) -> IntentModel
     return intent.model_copy(update={"group_by": normalized_group_by[:2]})
 
 
-def _validate_requested_references(query: str) -> None:
-    available_dimensions = ", ".join(CATEGORICAL_COLUMNS)
-    available_filters = ", ".join(ALL_COLUMNS)
+def _validate_requested_references(query: str, schema_context: dict[str, Any]) -> None:
+    available_dimensions = ", ".join(schema_context["categorical_columns"])
+    available_filters = ", ".join(schema_context["all_columns"])
 
     for pattern in GROUP_BY_PATTERNS:
         match = re.search(pattern, query)
@@ -397,7 +530,7 @@ def _validate_requested_references(query: str) -> None:
             continue
 
         chunk = GROUP_BY_SPLIT_PATTERN.split(match.group("chunk"), maxsplit=1)[0].strip()
-        if not chunk or _supports_reference(chunk):
+        if not chunk or _supports_reference(chunk, schema_context):
             continue
 
         if _has_meaningful_tokens(chunk):
@@ -409,7 +542,7 @@ def _validate_requested_references(query: str) -> None:
     for pattern in FILTER_PATTERNS:
         for match in re.finditer(pattern, query):
             chunk = FILTER_SPLIT_PATTERN.split(match.group("chunk"), maxsplit=1)[0].strip()
-            if not chunk or _supports_reference(chunk):
+            if not chunk or _supports_reference(chunk, schema_context):
                 continue
 
             if _has_meaningful_tokens(chunk):
@@ -419,7 +552,11 @@ def _validate_requested_references(query: str) -> None:
                 )
 
 
-def _extract_group_by(query: str, mentions: dict[str, list[str]]) -> list[str]:
+def _extract_group_by(
+    query: str,
+    mentions: dict[str, list[str]],
+    schema_context: dict[str, Any],
+) -> list[str]:
     detected: list[str] = []
 
     for pattern in GROUP_BY_PATTERNS:
@@ -428,7 +565,7 @@ def _extract_group_by(query: str, mentions: dict[str, list[str]]) -> list[str]:
             continue
 
         chunk = GROUP_BY_SPLIT_PATTERN.split(match.group("chunk"), maxsplit=1)[0]
-        for column in _find_columns(chunk, ALL_COLUMNS):
+        for column in _find_columns(chunk, schema_context["all_columns"], schema_context["column_aliases"]):
             if column not in detected:
                 detected.append(column)
 
@@ -443,14 +580,18 @@ def _extract_group_by(query: str, mentions: dict[str, list[str]]) -> list[str]:
         return _normalize_group_by_columns(detected)
 
     if any(keyword in query for keyword in ("compare", "comparison", "distribution", "breakdown", "split")):
-        for column in _find_columns(query, CATEGORICAL_COLUMNS):
+        for column in _find_columns(
+            query,
+            schema_context["categorical_columns"],
+            schema_context["column_aliases"],
+        ):
             if column not in detected:
                 detected.append(column)
 
     return _normalize_group_by_columns(detected)
 
 
-def _extract_numeric_filters(query: str) -> list[FilterModel]:
+def _extract_numeric_filters(query: str, schema_context: dict[str, Any]) -> list[FilterModel]:
     filters: list[FilterModel] = []
     seen_filters: set[tuple[str, str, float]] = set()
 
@@ -459,14 +600,15 @@ def _extract_numeric_filters(query: str) -> list[FilterModel]:
         (r"\byounger than (?P<value>\d+(?:\.\d+)?)\b", "<"),
     )
 
-    for pattern, operator in age_patterns:
-        match = re.search(pattern, query)
-        if match:
-            value = float(match.group("value"))
-            key = ("age", operator, value)
-            if key not in seen_filters:
-                filters.append(FilterModel(column="age", operator=operator, value=value))
-                seen_filters.add(key)
+    if "age" in schema_context["numeric_columns"]:
+        for pattern, operator in age_patterns:
+            match = re.search(pattern, query)
+            if match:
+                value = float(match.group("value"))
+                key = ("age", operator, value)
+                if key not in seen_filters:
+                    filters.append(FilterModel(column="age", operator=operator, value=value))
+                    seen_filters.add(key)
 
     comparisons = (
         (">=", ("at least", "minimum of", "min of")),
@@ -475,8 +617,8 @@ def _extract_numeric_filters(query: str) -> list[FilterModel]:
         ("<", ("below", "under", "less than")),
     )
 
-    for column in NUMERIC_COLUMNS:
-        aliases = sorted(COLUMN_ALIASES[column], key=len, reverse=True)
+    for column in schema_context["numeric_columns"]:
+        aliases = sorted(schema_context["column_aliases"][column], key=len, reverse=True)
 
         for alias in aliases:
             for operator, phrases in comparisons:
@@ -498,8 +640,13 @@ def _extract_numeric_filters(query: str) -> list[FilterModel]:
     return filters
 
 
-def _extract_filters(query: str, group_by: list[str], mentions: dict[str, list[str]]) -> list[FilterModel]:
-    filters = _extract_numeric_filters(query)
+def _extract_filters(
+    query: str,
+    group_by: list[str],
+    mentions: dict[str, list[str]],
+    schema_context: dict[str, Any],
+) -> list[FilterModel]:
+    filters = _extract_numeric_filters(query, schema_context)
 
     for column, values in mentions.items():
         if column in group_by:
@@ -511,26 +658,32 @@ def _extract_filters(query: str, group_by: list[str], mentions: dict[str, list[s
     return filters
 
 
-def _extract_metric(query: str, aggregation: str) -> str:
-    metric_matches = _find_columns(query, NUMERIC_COLUMNS)
+def _extract_metric(query: str, aggregation: str, schema_context: dict[str, Any]) -> str:
+    metric_matches = _find_columns(
+        query,
+        schema_context["numeric_columns"],
+        schema_context["column_aliases"],
+    )
     if metric_matches:
         return metric_matches[0]
 
-    if aggregation == "count":
-        return "age"
+    if aggregation == "count" and schema_context["numeric_columns"]:
+        return schema_context["numeric_columns"][0]
 
     raise ValueError(
         "Could not infer a numeric metric from the query. "
-        f"Available metrics: {', '.join(NUMERIC_COLUMNS)}"
+        f"Available metrics: {', '.join(schema_context['numeric_columns'])}"
     )
 
 
-def _derive_comparison_metrics(query: str) -> list[str]:
+def _derive_comparison_metrics(query: str, schema_context: dict[str, Any]) -> list[str]:
     derived_metrics: list[str] = []
 
     if "online" in query and "store" in query:
         if "spend" in query or "spending" in query:
-            derived_metrics.extend(["avg_online_spend", "avg_store_spend"])
+            for metric in ("avg_online_spend", "avg_store_spend"):
+                if metric in schema_context["numeric_columns"]:
+                    derived_metrics.append(metric)
 
         if (
             "behavior" in query
@@ -540,7 +693,9 @@ def _derive_comparison_metrics(query: str) -> list[str]:
             or "visit" in query
             or "visits" in query
         ):
-            derived_metrics.extend(["monthly_online_orders", "monthly_store_visits"])
+            for metric in ("monthly_online_orders", "monthly_store_visits"):
+                if metric in schema_context["numeric_columns"]:
+                    derived_metrics.append(metric)
 
     return derived_metrics
 
@@ -588,17 +743,17 @@ def build_exploratory_intents() -> list[IntentModel]:
     ]
 
 
-def _extract_intent_with_rules(query: str) -> IntentModel:
+def _extract_intent_with_rules(query: str, schema_context: dict[str, Any]) -> IntentModel:
     normalized_query = _normalize_text(query)
     if not normalized_query:
         raise ValueError("Query must not be empty.")
 
-    _validate_requested_references(normalized_query)
-    mentions = _extract_categorical_mentions(normalized_query)
+    _validate_requested_references(normalized_query, schema_context)
+    mentions = _extract_categorical_mentions(normalized_query, schema_context)
     aggregation = _extract_aggregation(normalized_query)
-    group_by = _extract_group_by(normalized_query, mentions)
-    filters = _extract_filters(normalized_query, group_by, mentions)
-    metric = _extract_metric(normalized_query, aggregation)
+    group_by = _extract_group_by(normalized_query, mentions, schema_context)
+    filters = _extract_filters(normalized_query, group_by, mentions, schema_context)
+    metric = _extract_metric(normalized_query, aggregation, schema_context)
     chart_preference = _extract_chart_preference(normalized_query)
 
     return IntentModel(
@@ -610,13 +765,13 @@ def _extract_intent_with_rules(query: str) -> IntentModel:
     )
 
 
-def _extract_intent_with_llm(query: str) -> IntentModel:
+def _extract_intent_with_llm(query: str, system_prompt: str) -> IntentModel:
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         temperature=0.1,
         max_tokens=500,
         messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": query},
         ],
     )
@@ -642,23 +797,26 @@ def _extract_intent_with_llm(query: str) -> IntentModel:
         raise ValueError(f"LLM output did not match expected structure: {exc}") from exc
 
 
-def extract_intent(query: str) -> IntentModel:
+def extract_intent(query: str, schema: dict) -> IntentModel:
     normalized_query = _normalize_text(query)
     if not normalized_query:
         raise ValueError("Query must not be empty.")
 
-    _validate_requested_references(normalized_query)
+    schema_context = _build_schema_context(schema)
+    _validate_requested_references(normalized_query, schema_context)
     llm_error: Exception | None = None
 
     try:
-        intent = _extract_intent_with_llm(query)
-        return _normalize_intent_from_query(normalized_query, intent)
+        intent = _extract_intent_with_llm(query, schema_context["system_prompt"])
+        intent = _correct_intent_columns(intent, schema_context["all_columns"])
+        return _normalize_intent_from_query(normalized_query, intent, schema_context)
     except (OpenAIError, ValueError) as exc:
         llm_error = exc
 
     try:
-        intent = _extract_intent_with_rules(query)
-        return _normalize_intent_from_query(normalized_query, intent)
+        intent = _extract_intent_with_rules(query, schema_context)
+        intent = _correct_intent_columns(intent, schema_context["all_columns"])
+        return _normalize_intent_from_query(normalized_query, intent, schema_context)
     except ValueError as fallback_error:
         if llm_error is None:
             raise
@@ -670,13 +828,18 @@ def extract_intent(query: str) -> IntentModel:
         ) from fallback_error
 
 
-def expand_comparison_intents(query: str, base_intent: IntentModel) -> list[IntentModel]:
+def expand_comparison_intents(query: str, base_intent: IntentModel, schema: dict) -> list[IntentModel]:
     normalized_query = _normalize_text(query)
     if not any(keyword in normalized_query for keyword in COMPARISON_KEYWORDS):
         return [base_intent]
 
-    derived_metrics = _derive_comparison_metrics(normalized_query)
-    matched_metrics = _find_columns(normalized_query, NUMERIC_COLUMNS)
+    schema_context = _build_schema_context(schema)
+    derived_metrics = _derive_comparison_metrics(normalized_query, schema_context)
+    matched_metrics = _find_columns(
+        normalized_query,
+        schema_context["numeric_columns"],
+        schema_context["column_aliases"],
+    )
     candidate_metrics = [*derived_metrics, *matched_metrics]
 
     if derived_metrics and ("age group" in normalized_query or "age groups" in normalized_query):

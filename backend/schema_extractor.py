@@ -1,66 +1,66 @@
-# backend/schema_extractor.py
+from pathlib import Path
 
 import pandas as pd
-from pathlib import Path
+
 
 CSV_PATH = Path(__file__).parent / "data" / "customer_behaviour.xlsx"
 
-# ─── Load DataFrame ───────────────────────────────────────────────────────────
 
 def _load_dataframe() -> pd.DataFrame:
     raw = pd.read_excel(CSV_PATH, header=None)
-    
-    # Row 1 has headers split across cells, row 0 is metadata
-    cols = ['age'] + [raw.iloc[1][i] for i in range(1, 25)]
+
+    # Row 1 has headers split across cells, row 0 is metadata.
+    columns = ["age"] + [raw.iloc[1][index] for index in range(1, 25)]
     data = raw.iloc[2:].reset_index(drop=True)
-    data.columns = cols
-    
-    # Convert numeric columns to proper numeric types
-    for col in data.columns:
-        converted = pd.to_numeric(data[col], errors='coerce')
+    data.columns = columns
+
+    for column in data.columns:
+        converted = pd.to_numeric(data[column], errors="coerce")
         if converted.notna().sum() > len(data) * 0.8:
-            data[col] = converted
+            data[column] = converted
 
     data["age_group"] = pd.cut(
         data["age"],
         bins=[17, 24, 34, 44, 54, 64, 120],
         labels=["18-24", "25-34", "35-44", "45-54", "55-64", "65+"],
-        include_lowest=True
+        include_lowest=True,
     ).astype(str)
 
     return data
 
 
-df: pd.DataFrame = _load_dataframe()
+def build_schema(dataframe: pd.DataFrame) -> dict:
+    columns: list[dict] = []
 
-# ─── Schema Extractor ─────────────────────────────────────────────────────────
-
-def extract_schema(dataframe: pd.DataFrame) -> dict:
-    columns = []
-
-    for col in dataframe.columns:
-        dtype = dataframe[col].dtype
+    for column in dataframe.columns:
+        dtype = dataframe[column].dtype
 
         if dtype in ["int64", "float64"]:
-            columns.append({
-                "name": col,
-                "type": "numeric",
-                "min": float(dataframe[col].min()),
-                "max": float(dataframe[col].max())
-            })
-        else:
-            unique_values = dataframe[col].dropna().unique().tolist()
-            columns.append({
-                "name": col,
+            columns.append(
+                {
+                    "name": column,
+                    "type": "numeric",
+                    "min": float(dataframe[column].min()),
+                    "max": float(dataframe[column].max()),
+                }
+            )
+            continue
+
+        unique_values = dataframe[column].dropna().unique().tolist()
+        columns.append(
+            {
+                "name": column,
                 "type": "categorical",
-                "values": unique_values
-            })
+                "values": unique_values,
+            }
+        )
 
     return {
         "columns": columns,
         "row_count": len(dataframe),
-        "column_names": dataframe.columns.tolist()
+        "column_names": dataframe.columns.tolist(),
     }
 
 
-schema_memory: dict = extract_schema(df)
+df: pd.DataFrame = _load_dataframe()
+schema_memory: dict = build_schema(df)

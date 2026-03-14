@@ -10,8 +10,6 @@ load_dotenv(dotenv_path=Path(__file__).resolve().parents[1] / ".env")
 
 MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
 MONGODB_DB_NAME = os.getenv("MONGODB_DB_NAME", "queryboard")
-AUTH_MODE = os.getenv("QUERYBOARD_AUTH_MODE", "real").strip().lower()
-MOCK_AUTH_ENABLED = AUTH_MODE == "mock"
 
 mongo_client: AsyncIOMotorClient | None = None
 mongo_database: AsyncIOMotorDatabase | None = None
@@ -24,6 +22,7 @@ async def connect_to_mongo() -> AsyncIOMotorDatabase:
         mongo_client = AsyncIOMotorClient(MONGODB_URL)
         mongo_database = mongo_client[MONGODB_DB_NAME]
         await mongo_database["users"].create_index("email", unique=True)
+        await mongo_database["sessions"].create_index("session_id", unique=True)
 
     return mongo_database
 
@@ -47,10 +46,12 @@ def get_users_collection() -> AsyncIOMotorCollection:
     return get_database()["users"]
 
 
+def get_sessions_collection() -> AsyncIOMotorCollection:
+    return get_database()["sessions"]
+
+
 @asynccontextmanager
 async def mongo_lifespan(app):
-    if not MOCK_AUTH_ENABLED:
-        await connect_to_mongo()
+    await connect_to_mongo()
     yield
-    if not MOCK_AUTH_ENABLED:
-        await close_mongo_connection()
+    await close_mongo_connection()

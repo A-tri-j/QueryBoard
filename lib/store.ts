@@ -30,13 +30,24 @@ interface QueryApiResponse {
 
 interface QueryStore {
   query: string
+  sessionId: string | null
+  activeFileName: string | null
+  activeRowCount: number | null
+  activeColumnCount: number | null
   status: 'idle' | 'loading' | 'success' | 'error'
   dashboardData: DashboardData | null
   queryHistory: QueryHistoryItem[]
   errorMessage: string | null
   lastQuery: string
   setQuery: (query: string) => void
-  submitQuery: (query: string) => Promise<void>
+  setActiveSession: (
+    sessionId: string,
+    fileName: string,
+    rowCount: number,
+    columnCount: number,
+  ) => void
+  clearActiveSession: () => void
+  submitQuery: (query: string, sessionId?: string | null) => Promise<void>
   clearDashboard: () => void
   selectHistoryItem: (query: string) => void
 }
@@ -101,6 +112,10 @@ function parseQueryResponse(payload: unknown): QueryApiResponse {
 
 export const useQueryStore = create<QueryStore>((set, get) => ({
   query: '',
+  sessionId: null,
+  activeFileName: null,
+  activeRowCount: null,
+  activeColumnCount: null,
   status: 'idle',
   dashboardData: null,
   queryHistory: [],
@@ -109,11 +124,35 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
 
   setQuery: (query) => set({ query }),
 
-  submitQuery: async (query) => {
+  setActiveSession: (sessionId, fileName, rowCount, columnCount) =>
+    set({
+      sessionId,
+      activeFileName: fileName,
+      activeRowCount: rowCount,
+      activeColumnCount: columnCount,
+      status: 'idle',
+      dashboardData: null,
+      errorMessage: null,
+      lastQuery: '',
+    }),
+
+  clearActiveSession: () =>
+    set({
+      sessionId: null,
+      activeFileName: null,
+      activeRowCount: null,
+      activeColumnCount: null,
+      status: 'idle',
+      dashboardData: null,
+    }),
+
+  submitQuery: async (query, sessionIdOverride) => {
     const normalizedQuery = query.trim()
     if (!normalizedQuery) {
       return
     }
+
+    const activeSessionId = sessionIdOverride ?? get().sessionId
 
     set({ status: 'loading', errorMessage: null, lastQuery: normalizedQuery })
 
@@ -123,7 +162,10 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ query: normalizedQuery }),
+        body: JSON.stringify({
+          query: normalizedQuery,
+          session_id: activeSessionId,
+        }),
         cache: 'no-store',
       })
 
@@ -172,6 +214,6 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
   }),
 
   selectHistoryItem: (query) => {
-    void get().submitQuery(query)
+    void get().submitQuery(query, get().sessionId)
   },
 }))

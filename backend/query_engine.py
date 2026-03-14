@@ -1,7 +1,6 @@
 import pandas as pd
 
 from models import FilterModel, IntentModel
-from schema_extractor import df
 
 
 def _apply_filters(dataframe: pd.DataFrame, filters: list[FilterModel]) -> pd.DataFrame:
@@ -30,13 +29,13 @@ def _apply_filters(dataframe: pd.DataFrame, filters: list[FilterModel]) -> pd.Da
     return filtered
 
 
-def execute_query(intent: IntentModel) -> tuple[pd.DataFrame, int]:
+def execute_query(intent: IntentModel, dataframe: pd.DataFrame) -> tuple[pd.DataFrame, int]:
     """
-    Takes a validated IntentModel, executes it against the dataframe.
+    Takes a validated IntentModel, executes it against the provided dataframe.
     Returns a tuple of (result_dataframe, total_rows_analyzed).
     """
 
-    working_df = _apply_filters(df, intent.filters)
+    working_df = _apply_filters(dataframe, intent.filters)
     rows_analyzed = len(working_df)
 
     if intent.group_by:
@@ -46,27 +45,34 @@ def execute_query(intent: IntentModel) -> tuple[pd.DataFrame, int]:
             )
 
         if intent.aggregation == "count":
+            result = working_df.groupby(intent.group_by).size().reset_index(name="count")
+        elif intent.aggregation == "nunique":
             result = (
-                working_df
-                .groupby(intent.group_by)
-                .size()
-                .reset_index(name=intent.metric)
+                working_df.groupby(intent.group_by)[intent.metric]
+                .nunique()
+                .reset_index(name="count")
             )
         else:
             result = (
-                working_df
-                .groupby(intent.group_by)[intent.metric]
-                .agg(intent.aggregation)
-                .reset_index()
+                working_df.groupby(intent.group_by)[intent.metric].agg(intent.aggregation).reset_index()
             )
     else:
         agg_value = getattr(working_df[intent.metric], intent.aggregation)()
-        result = pd.DataFrame({
-            intent.metric: [round(float(agg_value), 2)]
-        })
+        result_column = "count" if intent.aggregation in ("count", "nunique") else intent.metric
+        result = pd.DataFrame({result_column: [round(float(agg_value), 2)]})
 
     for column in result.select_dtypes(include=["float64"]).columns:
         result[column] = result[column].round(2)
+
+    # Limit to top 20 rows for large result sets to keep charts readable.
+    # Sort by the metric column descending so the most significant values show.
+    sort_col = "count" if intent.aggregation in ("count", "nunique") else intent.metric
+    if len(result) > 20 and sort_col in result.columns:
+        result = (
+            result.sort_values(sort_col, ascending=False)
+            .head(20)
+            .reset_index(drop=True)
+        )
 
     return result, rows_analyzed
 

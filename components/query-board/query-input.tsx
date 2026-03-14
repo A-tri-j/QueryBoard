@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { useQueryStore } from '@/lib/store'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, FileSpreadsheet, X } from 'lucide-react'
 
 interface QueryInputProps {
   variant?: 'hero' | 'bottom'
@@ -11,19 +11,19 @@ interface QueryInputProps {
 
 const exampleQueries = [
   "Compare online vs store spending",
-  "Gender distribution by shopping type",
+  "Average spend by city tier",
   "Highest tech savvy age group?"
 ]
 
 export function QueryInput({ variant = 'hero', onExampleClick }: QueryInputProps) {
   const [inputValue, setInputValue] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
-  const { submitQuery, status } = useQueryStore()
+  const { submitQuery, status, sessionId, activeFileName, clearActiveSession } = useQueryStore()
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (inputValue.trim() && status !== 'loading') {
-      submitQuery(inputValue.trim())
+      submitQuery(inputValue.trim(), sessionId)
       setInputValue('')
     }
   }
@@ -40,6 +40,28 @@ export function QueryInput({ variant = 'hero', onExampleClick }: QueryInputProps
 
   return (
     <div className={isHero ? 'w-full max-w-2xl mx-auto px-2 sm:px-0' : 'w-full'}>
+      {sessionId && activeFileName && (
+        <div className="mb-3 flex items-center justify-between gap-3 rounded-2xl border border-primary/20 bg-primary/10 px-4 py-3 text-left">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+              <FileSpreadsheet className="size-4" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs uppercase tracking-[0.18em] text-primary/80">Active Session</p>
+              <p className="truncate text-sm font-medium text-foreground">Querying: {activeFileName}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={clearActiveSession}
+            className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-background/70 hover:text-foreground"
+            aria-label="Clear active file"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit}>
         <div 
           className={`

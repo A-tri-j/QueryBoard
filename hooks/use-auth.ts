@@ -138,9 +138,18 @@ export function useAuth() {
   }
 
   const logout = useCallback(() => {
+    const token = getToken()
+    void fetch('/api/auth/logout', {
+      method: 'POST',
+      headers: token
+        ? {
+            Authorization: `Bearer ${token}`,
+          }
+        : undefined,
+    }).catch(() => undefined)
     setToken(null)
     setUser(null)
-  }, [setToken])
+  }, [getToken, setToken])
 
   const loginWithGoogle = () => {
     window.location.href = '/api/auth/google'

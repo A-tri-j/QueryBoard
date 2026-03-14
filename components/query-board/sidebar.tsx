@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useQueryStore, type QueryHistoryItem } from '@/lib/store'
+import { useAuth } from '@/hooks/useAuth'
 import { 
   BarChart3, 
   LineChart, 
@@ -11,6 +12,7 @@ import {
   ChevronRight,
   Database,
   History,
+  LogOut,
   X
 } from 'lucide-react'
 
@@ -29,7 +31,23 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
-  const { queryHistory, selectHistoryItem, status } = useQueryStore()
+  const {
+    queryHistory,
+    selectHistoryItem,
+    status,
+    sessionId,
+    activeFileName,
+    activeRowCount,
+    activeColumnCount,
+  } = useQueryStore()
+  const { logout } = useAuth()
+  const hasActiveSession = Boolean(sessionId)
+  const datasetFileName = hasActiveSession ? activeFileName || 'Uploaded dataset' : 'customer_behaviour.xlsx'
+  const datasetRowCount = hasActiveSession ? activeRowCount ?? 0 : 11791
+  const datasetColumnCount = hasActiveSession ? activeColumnCount ?? 0 : 25
+  const compactRowLabel = hasActiveSession
+    ? (datasetRowCount?.toLocaleString() ?? '0')
+    : '11.7K'
 
   // Close sidebar on escape key
   useEffect(() => {
@@ -119,21 +137,23 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">File</span>
-              <span className="font-mono text-foreground text-xs">customer_behaviour.csv</span>
+              <span className="font-mono text-foreground text-xs truncate max-w-[10rem] text-right">
+                {datasetFileName}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Rows</span>
-              <span className="font-mono text-primary">11,791</span>
+              <span className="font-mono text-primary">{datasetRowCount.toLocaleString()}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Columns</span>
-              <span className="font-mono text-primary">25</span>
+              <span className="font-mono text-primary">{datasetColumnCount.toLocaleString()}</span>
             </div>
           </div>
         )}
         {collapsed && (
           <div className="text-center">
-            <span className="font-mono text-xs text-primary">11.7K</span>
+            <span className="font-mono text-xs text-primary">{compactRowLabel}</span>
           </div>
         )}
       </div>
@@ -163,6 +183,23 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
             ))}
           </div>
         )}
+      </div>
+
+      <div className="mt-auto border-t border-sidebar-border p-4">
+        <button
+          type="button"
+          onClick={() => {
+            logout()
+            window.location.assign('/login')
+          }}
+          className={`w-full rounded-lg p-2 text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground ${
+            collapsed ? 'flex items-center justify-center' : 'flex items-center gap-2'
+          }`}
+          aria-label="Sign out"
+        >
+          <LogOut className="w-4 h-4 shrink-0" />
+          {!collapsed && <span className="text-sm">Sign out</span>}
+        </button>
       </div>
     </aside>
     </>

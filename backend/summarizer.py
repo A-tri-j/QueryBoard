@@ -67,12 +67,30 @@ def generate_summary(
 
     user_message = _format_data_for_prompt(query, intent, chart, rows_analyzed)
 
+    # Ground the summary in real data to prevent hallucination
+    top_records = sorted(
+        chart.data,
+        key=lambda r: r.get(chart.y, 0) if isinstance(r.get(chart.y), (int, float)) else 0,
+        reverse=True
+    )[:3]
+
+    data_facts = ", ".join(
+        f"{list(r.values())[0]}: {r.get(chart.y, 'N/A')}"
+        for r in top_records
+    ) if top_records else "No data"
+
+    grounded_system_prompt = (
+        SUMMARIZER_SYSTEM_PROMPT.strip()
+        + "\nKEY DATA FACTS (use only these exact numbers, do not invent others): "
+        + data_facts
+    )
+
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         temperature=0.7,
         max_tokens=200,
         messages=[
-            {"role": "system", "content": SUMMARIZER_SYSTEM_PROMPT},
+            {"role": "system", "content": grounded_system_prompt},
             {"role": "user", "content": user_message}
         ]
     )
