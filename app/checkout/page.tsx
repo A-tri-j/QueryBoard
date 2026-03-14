@@ -1,11 +1,13 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { Suspense, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { CreditCard, Landmark, Bitcoin } from 'lucide-react'
 import { Toaster } from '@/components/ui/toaster'
 import { toast } from '@/components/ui/use-toast'
 import { TIERS, type TierKey } from '@/lib/usage'
+
+export const dynamic = 'force-dynamic'
 
 type PaymentMethod = 'card' | 'paypal' | 'crypto'
 
@@ -26,7 +28,7 @@ const paymentMethods: Array<{
   { key: 'crypto', label: 'Crypto', icon: Bitcoin },
 ]
 
-export default function CheckoutPage() {
+function CheckoutContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const tier = useMemo(() => normalizeTier(searchParams.get('tier')), [searchParams])
@@ -78,7 +80,9 @@ export default function CheckoutPage() {
       <div className="mx-auto max-w-4xl">
         <div className="mx-auto max-w-xl text-center">
           <p className="text-sm uppercase tracking-[0.28em] text-primary/80">Mock Checkout</p>
-          <h1 className="mt-4 text-4xl font-semibold text-foreground">Complete your {tierConfig.label} upgrade</h1>
+          <h1 className="mt-4 text-4xl font-semibold text-foreground">
+            Complete your {tierConfig.label} upgrade
+          </h1>
           <p className="mt-4 text-muted-foreground">
             This is a demo flow. No real payment provider is called and no money is charged.
           </p>
@@ -145,7 +149,9 @@ export default function CheckoutPage() {
           </section>
 
           <aside className="rounded-3xl border border-border bg-background/70 p-6 shadow-[0_20px_80px_rgba(0,0,0,0.25)]">
-            <p className="text-sm uppercase tracking-[0.24em] text-muted-foreground/70">Order summary</p>
+            <p className="text-sm uppercase tracking-[0.24em] text-muted-foreground/70">
+              Order summary
+            </p>
             <h2 className="mt-4 text-2xl font-semibold text-foreground">{tierConfig.label}</h2>
             <p className="mt-2 text-sm text-muted-foreground">
               {paymentMethod === 'card'
@@ -156,18 +162,24 @@ export default function CheckoutPage() {
             <div className="mt-6 rounded-2xl border border-border bg-secondary/20 p-4">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Monthly price</span>
-                <span className="font-medium text-foreground">${tierConfig.price.toFixed(2)}</span>
+                <span className="font-medium text-foreground">
+                  ${tierConfig.price.toFixed(2)}
+                </span>
               </div>
               <div className="mt-3 flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Queries / day</span>
                 <span className="text-foreground">
-                  {Number.isFinite(tierConfig.queries) ? tierConfig.queries.toLocaleString() : 'Unlimited'}
+                  {Number.isFinite(tierConfig.queries)
+                    ? tierConfig.queries.toLocaleString()
+                    : 'Unlimited'}
                 </span>
               </div>
               <div className="mt-3 flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Uploads / day</span>
                 <span className="text-foreground">
-                  {Number.isFinite(tierConfig.uploads) ? tierConfig.uploads.toLocaleString() : 'Unlimited'}
+                  {Number.isFinite(tierConfig.uploads)
+                    ? tierConfig.uploads.toLocaleString()
+                    : 'Unlimited'}
                 </span>
               </div>
             </div>
@@ -184,5 +196,19 @@ export default function CheckoutPage() {
         </div>
       </div>
     </main>
+  )
+}
+
+export default function CheckoutPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <div className="w-8 h-8 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
+        </div>
+      }
+    >
+      <CheckoutContent />
+    </Suspense>
   )
 }

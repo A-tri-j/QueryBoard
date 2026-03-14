@@ -5,6 +5,8 @@ import { useEffect, useState } from 'react'
 import { ArrowRight, Check, Sparkles } from 'lucide-react'
 import { TIERS, type TierKey } from '@/lib/usage'
 
+export const dynamic = 'force-dynamic'
+
 interface UsageResponse {
   tier?: string
 }
