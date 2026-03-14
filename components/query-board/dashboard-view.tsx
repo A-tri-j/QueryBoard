@@ -89,20 +89,26 @@ export function DashboardView() {
   return (
     <div className="flex-1 flex flex-col p-4 sm:p-6 md:p-8 overflow-y-auto">
       {/* Summary Card */}
-      <div className="glass-card rounded-xl p-4 sm:p-6 mb-4 sm:mb-6 animate-fade-up">
-        <div className="flex items-start gap-2 sm:gap-3 mb-3 sm:mb-4">
+      <div className="glass-card rounded-2xl p-5 sm:p-6 mb-5 sm:mb-6 animate-fade-up border-l-2 border-l-primary/50 relative overflow-hidden">
+        {/* Faint radial glow */}
+        <div className="absolute -top-8 -left-8 w-32 h-32 bg-primary/8 rounded-full blur-2xl pointer-events-none" />
+        
+        <div className="relative flex items-start gap-2 sm:gap-3 mb-3 sm:mb-4">
           <Quote className="w-5 h-5 sm:w-6 sm:h-6 text-primary shrink-0 mt-0.5 sm:mt-1" />
-          <p className="text-base sm:text-lg text-foreground font-medium">{lastQuery}</p>
+          <p className="text-base sm:text-lg text-foreground font-medium leading-relaxed"
+             style={{ fontFamily: 'var(--font-heading)' }}>
+            {lastQuery}
+          </p>
         </div>
-        <p className="text-sm sm:text-base text-muted-foreground leading-relaxed mb-3 sm:mb-4">
+        <p className="relative text-sm sm:text-base text-muted-foreground leading-relaxed mb-3 sm:mb-4">
           {dashboardData.summary}
         </p>
-        <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
-          <span className="font-mono">
+        <div className="relative flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
+          <span className="font-mono text-xs bg-secondary/60 px-2.5 py-1 rounded-full border border-border/50">
             {dashboardData.timestamp.toLocaleTimeString()}
           </span>
-          <span className="text-primary font-mono">
-            {dashboardData.rows_analyzed.toLocaleString()} rows analyzed
+          <span className="font-mono text-xs bg-primary/8 text-primary px-2.5 py-1 rounded-full border border-primary/15">
+            {dashboardData.rows_analyzed.toLocaleString()} rows
           </span>
         </div>
       </div>
@@ -134,7 +140,7 @@ export function DashboardView() {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
-              className="inline-flex items-center gap-2 rounded-full border border-border bg-secondary/40 px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-full border border-border bg-secondary/40 px-4 py-2 text-sm text-muted-foreground transition-all duration-200 hover:bg-sidebar-accent hover:text-foreground hover:border-primary/30 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Upload className="w-4 h-4" />
               <span>{isUploading ? 'Uploading...' : 'Upload dataset'}</span>

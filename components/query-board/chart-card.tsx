@@ -41,6 +41,8 @@ const COLORS = [
   '#84cc16',  // lime
 ]
 
+const TOP_ACCENT_COLORS = ['#818cf8', '#a78bfa', '#10b981', '#f59e0b']
+
 export function ChartCard({ chart, index, fullWidth = false }: ChartCardProps) {
   const [showData, setShowData] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -54,20 +56,37 @@ export function ChartCard({ chart, index, fullWidth = false }: ChartCardProps) {
   return (
     <div 
       className={`
-        glass-card rounded-xl p-4 sm:p-6 animate-fade-up
+        glass-card rounded-2xl p-5 sm:p-6 animate-fade-up
+        relative overflow-hidden
         ${fullWidth ? 'col-span-1 md:col-span-2' : ''}
       `}
       style={{ animationDelay: `${index * 150}ms` }}
     >
+      {/* Colored top border accent */}
+      <div 
+        className="absolute top-0 left-0 right-0 h-[1px] opacity-60"
+        style={{ 
+          background: `linear-gradient(90deg, transparent, ${TOP_ACCENT_COLORS[index % 4]}, transparent)` 
+        }} 
+      />
+
       {/* Header */}
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="min-w-0 flex-1">
-          <h3 className="text-base sm:text-lg font-semibold text-foreground truncate">{chart.title}</h3>
+          <h3 
+            className="text-base sm:text-lg font-semibold text-foreground truncate"
+            style={{ fontFamily: 'var(--font-heading)', letterSpacing: '-0.02em' }}
+          >
+            {chart.title}
+          </h3>
           <p className="text-xs sm:text-sm text-muted-foreground italic line-clamp-2">{chart.reason}</p>
         </div>
         <button
           onClick={handleCopy}
-          className="p-1.5 sm:p-2 hover:bg-secondary rounded-lg transition-colors text-muted-foreground hover:text-foreground shrink-0"
+          className="p-2 rounded-lg text-muted-foreground 
+            hover:bg-primary/10 hover:text-primary 
+            border border-transparent hover:border-primary/20
+            transition-all duration-150 shrink-0"
           aria-label="Copy chart data as JSON"
         >
           {copied ? <Check className="w-4 h-4 text-primary" /> : <Copy className="w-4 h-4" />}
@@ -85,11 +104,12 @@ export function ChartCard({ chart, index, fullWidth = false }: ChartCardProps) {
       <button
         onClick={() => setShowData(!showData)}
         className="
-          flex items-center gap-2 mt-3 sm:mt-4 text-xs sm:text-sm text-muted-foreground
-          hover:text-foreground transition-colors
+          flex items-center gap-1.5 mt-4 text-xs font-medium
+          text-muted-foreground hover:text-primary
+          transition-colors duration-150 group
         "
       >
-        {showData ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        {showData ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />}
         {showData ? 'Hide raw data' : 'Show raw data'}
       </button>
 
@@ -128,11 +148,12 @@ function renderChart(chart: ChartData) {
   const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: { value: number; name: string; color: string }[]; label?: string }) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
-          <p className="font-medium text-foreground mb-1">{label}</p>
+        <div className="bg-card/95 backdrop-blur-sm border border-border rounded-xl p-3 shadow-2xl ring-1 ring-primary/10"
+             style={{ boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' }}>
+          <p className="font-medium text-foreground mb-1 text-sm">{label}</p>
           {payload.map((entry, index) => (
             <p key={index} className="text-sm" style={{ color: entry.color }}>
-              {entry.name}: <span className="font-mono">{entry.value.toLocaleString()}</span>
+              {entry.name}: <span className="font-mono font-medium">{entry.value.toLocaleString()}</span>
             </p>
           ))}
         </div>
@@ -274,7 +295,8 @@ function renderChart(chart: ChartData) {
               if (active && payload && payload.length) {
                 const data = payload[0].payload
                 return (
-                  <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
+                  <div className="bg-card/95 backdrop-blur-sm border border-border rounded-xl p-3 shadow-2xl ring-1 ring-primary/10"
+                       style={{ boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' }}>
                     <p className="font-medium text-foreground">{data.name}</p>
                     <p className="text-sm text-primary font-mono">{data.value.toLocaleString()}</p>
                   </div>

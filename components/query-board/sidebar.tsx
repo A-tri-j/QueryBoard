@@ -117,18 +117,23 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
           w-72 ${collapsed ? 'lg:w-16' : 'lg:w-72'}
         `}
       >
+      {/* Subtle vertical gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-b from-primary/3 via-transparent to-transparent pointer-events-none" />
+
       {/* Logo */}
-      <div className="flex items-center justify-between p-4 border-b border-sidebar-border">
+      <div className="relative flex items-center justify-between p-4 border-b border-sidebar-border">
         {!collapsed && (
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center"
+                 style={{ boxShadow: '0 0 16px rgba(99,102,241,0.3)' }}>
               <BarChart3 className="w-5 h-5 text-primary-foreground" />
             </div>
-            <span className="font-bold text-lg text-foreground">QueryBoard</span>
+            <span className="font-bold text-lg text-foreground" style={{ fontFamily: 'var(--font-heading)' }}>QueryBoard</span>
           </div>
         )}
         {collapsed && (
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center mx-auto">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center mx-auto"
+               style={{ boxShadow: '0 0 16px rgba(99,102,241,0.3)' }}>
             <BarChart3 className="w-5 h-5 text-primary-foreground" />
           </div>
         )}
@@ -145,46 +150,59 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
         {/* Desktop collapse toggle */}
         <button 
           onClick={() => setCollapsed(!collapsed)}
-          className="hidden lg:block p-1 hover:bg-sidebar-accent rounded-md transition-colors text-muted-foreground hover:text-foreground"
+          className="hidden lg:flex items-center justify-center w-6 h-6 rounded-full
+            bg-sidebar-accent border border-sidebar-border
+            text-muted-foreground hover:text-foreground
+            transition-all duration-200 hover:scale-110"
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
-          {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+          {collapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
         </button>
       </div>
 
       {/* Dataset Info */}
-      <div className="p-4 border-b border-sidebar-border">
-        <div className="flex items-center gap-2 mb-3">
-          <Database className="w-4 h-4 text-primary" />
-          {!collapsed && <span className="text-sm font-medium text-foreground">Dataset</span>}
-        </div>
-        {!collapsed && (
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">File</span>
-              <span className="font-mono text-foreground text-xs truncate max-w-40 text-right">
-                {datasetFileName}
-              </span>
+      <div className="relative p-4 border-b border-sidebar-border">
+        {!collapsed ? (
+          <div className="mx-0 mb-0 rounded-xl p-3 
+            bg-gradient-to-br from-primary/10 to-violet-500/5
+            border border-primary/20"
+            style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)' }}
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <Database className="w-4 h-4 text-primary" />
+              <span className="text-sm font-medium text-foreground">Dataset</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Rows</span>
-              <span className="font-mono text-primary">{datasetRowCount.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Columns</span>
-              <span className="font-mono text-primary">{datasetColumnCount.toLocaleString()}</span>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">File</span>
+                <span className="font-mono text-foreground text-xs truncate max-w-40 text-right">
+                  {datasetFileName}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Rows</span>
+                <span className="font-mono text-primary">{datasetRowCount.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Columns</span>
+                <span className="font-mono text-primary">{datasetColumnCount.toLocaleString()}</span>
+              </div>
             </div>
           </div>
-        )}
-        {collapsed && (
-          <div className="text-center">
-            <span className="font-mono text-xs text-primary">{compactRowLabel}</span>
-          </div>
+        ) : (
+          <>
+            <div className="flex items-center justify-center mb-3">
+              <Database className="w-4 h-4 text-primary" />
+            </div>
+            <div className="text-center">
+              <span className="font-mono text-xs text-primary">{compactRowLabel}</span>
+            </div>
+          </>
         )}
       </div>
 
       {/* Query History */}
-      <div className="flex-1 p-4 overflow-y-auto">
+      <div className="relative flex-1 p-4 overflow-y-auto">
         <div className="flex items-center gap-2 mb-3">
           <History className="w-4 h-4 text-primary" />
           {!collapsed && <span className="text-sm font-medium text-foreground">Recent Queries</span>}
@@ -205,11 +223,11 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
               return (
                 <div key={groupName}>
                   {!collapsed && (
-                    <p className="text-xs uppercase tracking-wider text-muted-foreground/60 mb-1 mt-3 first:mt-0">
+                    <p className="px-3 py-1 text-[10px] font-mono font-medium uppercase tracking-widest text-muted-foreground/60 mb-1 mt-3 first:mt-0">
                       {groupName}
                     </p>
                   )}
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     {items.map((item, index) => (
                       <HistoryItem 
                         key={item.id ?? `${groupName}-${item.query}-${index}`}
@@ -229,7 +247,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
         )}
       </div>
 
-      <div className="mt-auto border-t border-sidebar-border p-4">
+      <div className="relative mt-auto border-t border-sidebar-border p-4">
         <UsageBanner collapsed={collapsed} />
         <button
           type="button"
@@ -292,14 +310,15 @@ function HistoryItem({
         onClick={onClick}
         disabled={disabled}
         className={`
-          w-full text-left p-2 rounded-lg glass-card
-          hover:border-primary/30 transition-all
+          group w-full text-left p-2 rounded-lg glass-card
+          border-l-2 border-transparent hover:border-primary/40
+          hover:border-primary/30 transition-all duration-150
           disabled:opacity-50 disabled:cursor-not-allowed
           animate-slide-in-left
         `}
         style={{ animationDelay: `${index * 50}ms` }}
       >
-        <div className="flex items-center gap-2 pr-8">
+        <div className="flex items-center gap-2.5 pr-8">
           <Icon className="w-4 h-4 text-primary shrink-0" />
           {!collapsed && (
             <span className="text-sm text-foreground truncate">{item.query}</span>

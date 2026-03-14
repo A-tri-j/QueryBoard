@@ -27,14 +27,12 @@ function getTierStyles(tier: TierKey) {
       icon: Crown,
     }
   }
-
   if (tier === 'ultra') {
     return {
       badge: 'border-amber-400/40 bg-amber-500/15 text-amber-300',
       icon: Sparkles,
     }
   }
-
   return {
     badge: 'border-border bg-secondary/50 text-muted-foreground',
     icon: Crown,
@@ -73,18 +71,10 @@ export function UsageBanner({ collapsed = false }: { collapsed?: boolean }) {
 
   useEffect(() => {
     void loadUsage()
-
-    const handleRefresh = () => {
-      void loadUsage()
-    }
-
-    const intervalId = window.setInterval(() => {
-      void loadUsage()
-    }, 30000)
-
+    const handleRefresh = () => { void loadUsage() }
+    const intervalId = window.setInterval(() => { void loadUsage() }, 30000)
     window.addEventListener('focus', handleRefresh)
     window.addEventListener('qb-usage-refresh', handleRefresh as EventListener)
-
     return () => {
       window.clearInterval(intervalId)
       window.removeEventListener('focus', handleRefresh)
@@ -100,18 +90,8 @@ export function UsageBanner({ collapsed = false }: { collapsed?: boolean }) {
   const uploadsUsed = usage?.uploads_used ?? 0
 
   const usageRows = useMemo(() => ([
-    {
-      key: 'queries' as const,
-      label: 'Queries',
-      used: queriesUsed,
-      limit: tierConfig.queries,
-    },
-    {
-      key: 'uploads' as const,
-      label: 'Uploads',
-      used: uploadsUsed,
-      limit: tierConfig.uploads,
-    },
+    { key: 'queries' as const, label: 'Queries', used: queriesUsed, limit: tierConfig.queries },
+    { key: 'uploads' as const, label: 'Uploads', used: uploadsUsed, limit: tierConfig.uploads },
   ]), [queriesUsed, uploadsUsed, tierConfig.queries, tierConfig.uploads])
 
   if (collapsed) {
@@ -128,7 +108,7 @@ export function UsageBanner({ collapsed = false }: { collapsed?: boolean }) {
     <div className="mb-4 rounded-xl border border-sidebar-border bg-secondary/20 p-3">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/70">Plan</p>
+          <p className="text-[10px] font-mono font-medium uppercase tracking-widest text-muted-foreground/60">Plan</p>
           <div className="mt-2 flex items-center gap-2">
             <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium ${tierStyles.badge}`}>
               <TierIcon className="h-3.5 w-3.5" />
@@ -140,7 +120,7 @@ export function UsageBanner({ collapsed = false }: { collapsed?: boolean }) {
         {tier === 'free' ? (
           <Link
             href="/pricing"
-            className="inline-flex items-center rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90"
+            className="inline-flex items-center rounded-full bg-gradient-to-r from-primary to-violet-600 px-3 py-1.5 text-xs font-medium text-primary-foreground transition-all duration-200 hover:shadow-[0_0_16px_rgba(99,102,241,0.4)] hover:opacity-90"
           >
             Upgrade
           </Link>
@@ -151,32 +131,29 @@ export function UsageBanner({ collapsed = false }: { collapsed?: boolean }) {
         {usageRows.map((item) => {
           const reached = isLimitReached(tier, item.used, item.key)
           const limit = item.limit
-          const percent = usagePercent(item.used, Number(limit))
-          const warning = Number.isFinite(limit) && percent >= 80 && !reached
+          const pct = usagePercent(item.used, Number(limit))
+          const warning = Number.isFinite(limit) && pct >= 80 && !reached
 
           return (
             <div key={item.key}>
               <div className="mb-1 flex items-center justify-between text-xs">
                 <span className="text-muted-foreground">{item.label}</span>
-                <span className={reached ? 'text-destructive' : 'text-foreground'}>
+                <span className={reached ? 'text-destructive font-mono' : 'text-foreground font-mono'}>
                   {item.used.toLocaleString()} / {formatLimit(Number(limit))}
                 </span>
               </div>
               {Number.isFinite(limit) ? (
-                <div className="h-2 rounded-full bg-sidebar-border/60">
+                <div className="h-1.5 rounded-full overflow-hidden bg-border">
                   <div
-                    className={`h-2 rounded-full transition-all ${
-                      reached
-                        ? 'bg-destructive'
-                        : warning
-                          ? 'bg-amber-400'
-                          : tier === 'ultra'
-                            ? 'bg-amber-300'
-                            : tier === 'pro'
-                              ? 'bg-primary'
-                              : 'bg-muted-foreground'
-                    }`}
-                    style={{ width: `${percent}%` }}
+                    className="h-full rounded-full transition-all duration-700"
+                    style={{
+                      width: `${pct}%`,
+                      background: reached
+                        ? 'linear-gradient(90deg, #ef4444, #dc2626)'
+                        : warning || pct > 80
+                          ? 'linear-gradient(90deg, #f59e0b, #ef4444)'
+                          : 'linear-gradient(90deg, hsl(248,90%,68%), hsl(270,83%,65%))'
+                    }}
                   />
                 </div>
               ) : (

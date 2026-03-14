@@ -47,7 +47,13 @@ export function QueryInput({ variant = 'hero', onExampleClick }: QueryInputProps
               <FileSpreadsheet className="size-4" />
             </div>
             <div className="min-w-0">
-              <p className="text-xs uppercase tracking-[0.18em] text-primary/80">Active Session</p>
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <p className="text-xs uppercase tracking-[0.18em] text-primary/80">Active Session</p>
+              </div>
               <p className="truncate text-sm font-medium text-foreground">Querying: {activeFileName}</p>
             </div>
           </div>
@@ -66,10 +72,13 @@ export function QueryInput({ variant = 'hero', onExampleClick }: QueryInputProps
         <div 
           className={`
             relative flex items-center gap-2
-            bg-secondary/50 border border-border rounded-full
-            ${isHero ? 'p-1.5 pl-4 sm:p-2 sm:pl-6' : 'p-1.5 pl-4'}
-            focus-within:border-primary/50 focus-within:shadow-[0_0_20px_rgba(129,140,248,0.15)]
-            transition-all
+            bg-card/80 backdrop-blur-md
+            border border-border rounded-2xl
+            ${isHero ? 'p-2 pl-5 sm:p-2.5 sm:pl-6' : 'p-1.5 pl-4'}
+            focus-within:border-primary/50
+            focus-within:shadow-[0_0_0_1px_rgba(99,102,241,0.2),0_0_32px_rgba(99,102,241,0.12)]
+            transition-all duration-300
+            ambient-glow
           `}
         >
           <input
@@ -89,11 +98,15 @@ export function QueryInput({ variant = 'hero', onExampleClick }: QueryInputProps
             type="submit"
             disabled={!inputValue.trim() || status === 'loading'}
             className={`
-              rounded-full bg-primary text-primary-foreground
+              rounded-xl bg-gradient-to-br from-primary to-violet-600
+              text-primary-foreground
               flex items-center justify-center shrink-0
-              hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed
-              transition-all glow-primary
-              ${isHero ? 'w-10 h-10 sm:w-12 sm:h-12' : 'w-10 h-10'}
+              hover:from-primary/90 hover:to-violet-500
+              hover:shadow-[0_0_20px_rgba(99,102,241,0.4)]
+              disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none
+              transition-all duration-200
+              active:scale-95
+              ${isHero ? 'w-10 h-10 sm:w-11 sm:h-11' : 'w-9 h-9'}
             `}
             aria-label="Submit query"
           >
@@ -111,12 +124,15 @@ export function QueryInput({ variant = 'hero', onExampleClick }: QueryInputProps
               onClick={() => handleExampleClick(query)}
               disabled={status === 'loading'}
               className="
-                px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm
-                bg-secondary/50 border border-border
-                text-muted-foreground hover:text-foreground
-                hover:border-primary/30 hover:bg-secondary
-                transition-all disabled:opacity-50
+                px-4 py-2 rounded-full text-xs font-medium
+                bg-secondary/40 border border-border
+                text-muted-foreground hover:text-primary
+                hover:border-primary/40
+                hover:shadow-[0_0_12px_rgba(99,102,241,0.15)]
+                transition-all duration-200
+                disabled:opacity-50
               "
+              style={{ backgroundColor: undefined }}
             >
               {query}
             </button>

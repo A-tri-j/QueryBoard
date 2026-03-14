@@ -94,8 +94,14 @@ export function HeroState() {
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 md:px-8 text-center">
-      <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-foreground mb-3 sm:mb-4 text-balance">
-        Ask anything about your data
+      <h1 
+        className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight text-foreground mb-4 text-balance"
+        style={{ fontFamily: 'var(--font-heading)' }}
+      >
+        Ask anything about{' '}
+        <span className="bg-gradient-to-r from-primary via-violet-400 to-primary bg-clip-text text-transparent">
+          your data
+        </span>
       </h1>
       <p className="text-base sm:text-lg md:text-xl text-muted-foreground mb-8 sm:mb-10 md:mb-12 max-w-xl text-pretty">
         Type a plain English question. Get charts, data, and insights instantly.
@@ -121,20 +127,26 @@ export function HeroState() {
           onDragLeave={() => setIsDragging(false)}
           onDrop={handleDrop}
           disabled={isUploading}
-          className={`w-full rounded-3xl border border-dashed px-6 py-8 text-left transition-all ${
+          className={`w-full rounded-3xl border px-6 py-8 text-left transition-all duration-300 ${
             isDragging
               ? 'border-primary bg-primary/10 shadow-[0_0_40px_rgba(99,102,241,0.15)]'
-              : 'border-border bg-secondary/30 hover:border-primary/30 hover:bg-secondary/50'
+              : 'border-border/60 bg-secondary/20 hover:border-primary/30 hover:bg-secondary/40'
           } ${isUploading ? 'cursor-wait opacity-80' : 'cursor-pointer'}`}
+          style={{
+            borderStyle: isDragging ? 'solid' : 'dashed',
+          }}
         >
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-4">
-              <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary/12 text-primary">
+              <div className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 to-violet-500/10 border border-primary/20 text-primary"
+                style={{ boxShadow: '0 0 20px rgba(99,102,241,0.15)' }}
+              >
                 {isUploading ? <Loader2 className="size-5 animate-spin" /> : <FileUp className="size-5" />}
               </div>
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.22em] text-primary/80">Upload Data</p>
-                <h2 className="mt-1 text-lg font-semibold text-foreground">
+                <h2 className="mt-1 text-lg font-semibold text-foreground"
+                    style={{ fontFamily: 'var(--font-heading)' }}>
                   Drop a CSV or XLSX file to start querying that dataset
                 </h2>
                 <p className="mt-2 text-sm text-muted-foreground">
@@ -142,7 +154,8 @@ export function HeroState() {
                 </p>
               </div>
             </div>
-            <span className="inline-flex items-center justify-center rounded-full border border-border bg-background/70 w-10 h-10 text-foreground shrink-0">
+            <span className="inline-flex items-center justify-center rounded-full border border-border bg-background/70 w-10 h-10 text-foreground shrink-0
+              transition-all duration-200 hover:border-primary/40 hover:text-primary">
               {isUploading
                 ? <Loader2 className="size-4 animate-spin" />
                 : <Plus className="size-4" />}
