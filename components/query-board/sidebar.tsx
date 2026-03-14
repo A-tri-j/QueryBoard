@@ -35,6 +35,8 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     queryHistory,
     selectHistoryItem,
     status,
+    loadHistory,
+    historyLoaded,
     sessionId,
     activeFileName,
     activeRowCount,
@@ -71,6 +73,26 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
       document.body.style.overflow = ''
     }
   }, [isOpen])
+
+  useEffect(() => {
+    if (!historyLoaded) {
+      void loadHistory()
+    }
+  }, [historyLoaded, loadHistory])
+
+  const groupedHistory = queryHistory.reduce((groups, item) => {
+    const now = new Date()
+    const itemDate = new Date(item.timestamp)
+    const diffDays = Math.floor(
+      (now.getTime() - itemDate.getTime()) / (1000 * 60 * 60 * 24)
+    )
+    const group = diffDays === 0 ? 'Today'
+      : diffDays === 1 ? 'Yesterday'
+      : 'Earlier'
+    if (!groups[group]) groups[group] = []
+    groups[group].push(item)
+    return groups
+  }, {} as Record<string, typeof queryHistory>)
 
   return (
     <>
@@ -137,7 +159,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">File</span>
-              <span className="font-mono text-foreground text-xs truncate max-w-[10rem] text-right">
+              <span className="font-mono text-foreground text-xs truncate max-w-40 text-right">
                 {datasetFileName}
               </span>
             </div>
@@ -171,16 +193,34 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
           )
         ) : (
           <div className="space-y-2">
-            {queryHistory.map((item, index) => (
-              <HistoryItem 
-                key={`${item.query}-${index}`}
-                item={item}
-                collapsed={collapsed}
-                onClick={() => status !== 'loading' && selectHistoryItem(item.query)}
-                disabled={status === 'loading'}
-                index={index}
-              />
-            ))}
+            {['Today', 'Yesterday', 'Earlier'].map((groupName) => {
+              const items = groupedHistory[groupName]
+              if (!items?.length) {
+                return null
+              }
+
+              return (
+                <div key={groupName}>
+                  {!collapsed && (
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground/60 mb-1 mt-3 first:mt-0">
+                      {groupName}
+                    </p>
+                  )}
+                  <div className="space-y-2">
+                    {items.map((item, index) => (
+                      <HistoryItem 
+                        key={item.id ?? `${groupName}-${item.query}-${index}`}
+                        item={item}
+                        collapsed={collapsed}
+                        onClick={() => status !== 'loading' && selectHistoryItem(item.query)}
+                        disabled={status === 'loading'}
+                        index={index}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
           </div>
         )}
       </div>

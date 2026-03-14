@@ -6,13 +6,13 @@ from uuid import uuid4
 
 import pandas as pd
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import BackgroundTasks, FastAPI, File, HTTPException, UploadFile
 from openai import OpenAI
 
 from chart_planner import plan_chart
 from core.middleware import setup_middleware
 from dashboard_planner import build_dashboard_response
-from db.mongodb import get_sessions_collection, mongo_lifespan
+from db.mongodb import get_query_history_collection, get_sessions_collection, mongo_lifespan
 from intent_extractor import (
     build_exploratory_intents,
     expand_comparison_intents,
@@ -42,6 +42,30 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 setup_middleware(app)
 app.include_router(auth_router)
 app.include_router(google_auth_router)
+
+
+async def _save_query_history(
+    query: str,
+    charts: list,
+    summary: str,
+    rows_analyzed: int,
+    session_id: str | None,
+) -> None:
+    try:
+        await get_query_history_collection().insert_one(
+            {
+                "query": query,
+                "summary": summary,
+                "rows_analyzed": rows_analyzed,
+                "session_id": session_id,
+                "chart_count": len(charts),
+                "primary_chart_type": charts[0].type if charts else "bar",
+                "charts": [chart.model_dump() for chart in charts],
+                "created_at": datetime.now(timezone.utc),
+            }
+        )
+    except Exception:
+        pass
 
 
 def _build_multi_chart_summary(query: str, charts: list, rows_analyzed: int) -> str:
@@ -255,8 +279,26 @@ async def upload_dataset(file: UploadFile = File(...)):
     }
 
 
+@app.get("/api/history")
+async def get_history():
+    try:
+        cursor = get_query_history_collection().find(
+            {},
+            sort=[("created_at", -1)],
+            limit=50,
+        )
+        items = await cursor.to_list(length=50)
+        for item in items:
+            item["id"] = str(item.pop("_id"))
+            if hasattr(item.get("created_at"), "isoformat"):
+                item["created_at"] = item["created_at"].isoformat()
+        return {"items": items}
+    except Exception:
+        return {"items": []}
+
+
 @app.post("/api/query", response_model=QueryResponse)
-async def handle_query(request: QueryRequest):
+async def handle_query(request: QueryRequest, background_tasks: BackgroundTasks):
     query = request.query.strip()
     _validate_query_input(query)
 
@@ -271,6 +313,14 @@ async def handle_query(request: QueryRequest):
         dashboard_response = build_dashboard_response(query)
         if dashboard_response is not None:
             charts, rows_analyzed, summary = dashboard_response
+            background_tasks.add_task(
+                _save_query_history,
+                query,
+                charts,
+                summary,
+                rows_analyzed,
+                request.session_id,
+            )
             return QueryResponse(
                 charts=charts,
                 summary=summary,
@@ -334,6 +384,15 @@ async def handle_query(request: QueryRequest):
             )
     else:
         summary = _build_multi_chart_summary(query, charts, rows_analyzed)
+
+    background_tasks.add_task(
+        _save_query_history,
+        query,
+        charts,
+        summary,
+        rows_analyzed,
+        request.session_id,
+    )
 
     return QueryResponse(
         charts=charts,

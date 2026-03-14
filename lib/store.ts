@@ -17,9 +17,13 @@ export interface DashboardData {
 }
 
 export interface QueryHistoryItem {
+  id?: string
   query: string
   chartType: 'bar' | 'line' | 'scatter' | 'pie' | 'histogram'
   timestamp: Date
+  charts?: ChartData[]
+  summary?: string
+  rows_analyzed?: number
 }
 
 interface QueryApiResponse {
@@ -37,6 +41,7 @@ interface QueryStore {
   status: 'idle' | 'loading' | 'success' | 'error'
   dashboardData: DashboardData | null
   queryHistory: QueryHistoryItem[]
+  historyLoaded: boolean
   errorMessage: string | null
   lastQuery: string
   setQuery: (query: string) => void
@@ -48,6 +53,7 @@ interface QueryStore {
   ) => void
   clearActiveSession: () => void
   submitQuery: (query: string, sessionId?: string | null) => Promise<void>
+  loadHistory: () => Promise<void>
   clearDashboard: () => void
   selectHistoryItem: (query: string) => void
 }
@@ -119,6 +125,7 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
   status: 'idle',
   dashboardData: null,
   queryHistory: [],
+  historyLoaded: false,
   errorMessage: null,
   lastQuery: '',
 
@@ -186,10 +193,13 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
         query: normalizedQuery,
         chartType: primaryChartType,
         timestamp: new Date(),
+        charts: dashboardData.charts,
+        summary: dashboardData.summary,
+        rows_analyzed: dashboardData.rows_analyzed,
       }
 
       const currentHistory = get().queryHistory
-      const updatedHistory = [newHistoryItem, ...currentHistory.filter((item) => item.query !== normalizedQuery)].slice(0, 10)
+      const updatedHistory = [newHistoryItem, ...currentHistory.filter((item) => item.query !== normalizedQuery)].slice(0, 50)
 
       set({
         status: 'success',
@@ -198,6 +208,7 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
         errorMessage: null,
         query: '',
       })
+      void get().loadHistory()
     } catch (error) {
       set({
         status: 'error',
@@ -213,7 +224,52 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
     errorMessage: null,
   }),
 
+  loadHistory: async () => {
+    try {
+      const response = await fetch('/api/history')
+      const data = await response.json()
+      if (!data.items) return
+
+      const items: QueryHistoryItem[] = data.items.map((item: {
+        id: string
+        query: string
+        primary_chart_type: 'bar' | 'line' | 'scatter' | 'pie' | 'histogram'
+        created_at: string
+        charts: ChartData[]
+        summary: string
+        rows_analyzed: number
+      }) => ({
+        id: item.id,
+        query: item.query,
+        chartType: item.primary_chart_type,
+        timestamp: new Date(item.created_at),
+        charts: item.charts,
+        summary: item.summary,
+        rows_analyzed: item.rows_analyzed,
+      }))
+
+      set({ queryHistory: items, historyLoaded: true })
+    } catch {
+      // silently fail — history is non-critical
+    }
+  },
+
   selectHistoryItem: (query) => {
-    void get().submitQuery(query, get().sessionId)
+    const item = get().queryHistory.find((historyItem) => historyItem.query === query)
+    if (item?.charts && item.charts.length > 0) {
+      set({
+        status: 'success',
+        lastQuery: item.query,
+        dashboardData: {
+          charts: item.charts,
+          summary: item.summary ?? '',
+          rows_analyzed: item.rows_analyzed ?? 0,
+          timestamp: item.timestamp,
+        },
+        errorMessage: null,
+      })
+    } else {
+      void get().submitQuery(query, get().sessionId)
+    }
   },
 }))

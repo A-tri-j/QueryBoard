@@ -23,6 +23,12 @@ async def connect_to_mongo() -> AsyncIOMotorDatabase:
         mongo_database = mongo_client[MONGODB_DB_NAME]
         await mongo_database["users"].create_index("email", unique=True)
         await mongo_database["sessions"].create_index("session_id", unique=True)
+        await mongo_database["sessions"].create_index(
+            "created_at", expireAfterSeconds=86400
+        )
+        await mongo_database["query_history"].create_index(
+            "created_at", expireAfterSeconds=604800
+        )
 
     return mongo_database
 
@@ -48,6 +54,10 @@ def get_users_collection() -> AsyncIOMotorCollection:
 
 def get_sessions_collection() -> AsyncIOMotorCollection:
     return get_database()["sessions"]
+
+
+def get_query_history_collection() -> AsyncIOMotorCollection:
+    return get_database()["query_history"]
 
 
 @asynccontextmanager

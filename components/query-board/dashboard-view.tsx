@@ -30,6 +30,15 @@ export function DashboardView() {
       return
     }
 
+    const MAX_FILE_SIZE = 4.5 * 1024 * 1024
+    if (file.size > MAX_FILE_SIZE) {
+      setUploadError(
+        `File too large (${(file.size / (1024 * 1024)).toFixed(1)}MB). ` +
+        `Maximum size is 4.5MB.`
+      )
+      return
+    }
+
     setIsUploading(true)
     setUploadError(null)
 

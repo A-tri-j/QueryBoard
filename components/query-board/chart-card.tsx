@@ -85,7 +85,7 @@ export function ChartCard({ chart, index, fullWidth = false }: ChartCardProps) {
       {/* Data table */}
       {showData && (
         <div className="mt-3 sm:mt-4 overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
-          <table className="w-full text-xs sm:text-sm min-w-[400px]">
+          <table className="w-full text-xs sm:text-sm min-w-100">
             <thead>
               <tr className="border-b border-border">
                 {Object.keys(chart.data[0] || {}).map((key) => (
