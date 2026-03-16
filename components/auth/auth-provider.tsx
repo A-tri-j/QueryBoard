@@ -24,13 +24,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Whenever local auth state changes (login/logout), sync the Zustand store
   useEffect(() => {
+    // Never sync while fetchUser is still in-flight — localAuth.user is null
+    // during the async gap and would wrongly trigger zustandAuth.logout()
+    if (localAuth.isLoading) return
+
     if (localAuth.user && !zustandAuth.state.isAuthenticated) {
       void zustandAuth.refreshUser()
     }
     if (!localAuth.user && zustandAuth.state.isAuthenticated) {
       zustandAuth.logout()
     }
-  }, [localAuth.user])
+  }, [localAuth.isLoading, localAuth.user])
 
   return (
     <AuthContext.Provider value={localAuth}>

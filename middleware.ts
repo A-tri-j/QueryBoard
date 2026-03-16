@@ -8,7 +8,6 @@ const PUBLIC_ROUTES = [
   '/privacy',
   '/landing',
   '/pricing',
-  '/checkout',
 ]
 
 export function middleware(request: NextRequest) {

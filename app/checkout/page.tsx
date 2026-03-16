@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { CreditCard, Landmark, Bitcoin } from 'lucide-react'
 import { Toaster } from '@/components/ui/toaster'
@@ -36,6 +36,16 @@ function CheckoutContent() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [purchaseError, setPurchaseError] = useState<string | null>(null)
+
+  // Client-side auth guard — middleware handles server-side, this is the client fallback
+  useEffect(() => {
+    const token = typeof window !== 'undefined'
+      ? localStorage.getItem('qb_token')
+      : null
+    if (!token) {
+      router.replace('/login')
+    }
+  }, [router])
 
   const completePurchase = async () => {
     setIsSubmitting(true)

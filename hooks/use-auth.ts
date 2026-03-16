@@ -44,6 +44,7 @@ export function useAuth() {
   const fetchUser = useCallback(async () => {
     const token = getToken()
     if (!token) {
+      // No token — just mark unauthenticated, never touch the cookie
       setUser(null)
       setIsLoading(false)
       return
@@ -60,11 +61,12 @@ export function useAuth() {
       if (data.success && data.data?.user) {
         setUser(data.data.user)
       } else {
+        // Token existed but server rejected it — safe to clear
         setToken(null)
         setUser(null)
       }
     } catch {
-      setToken(null)
+      // Network error — do NOT clear the token, let the user retry
       setUser(null)
     } finally {
       setIsLoading(false)

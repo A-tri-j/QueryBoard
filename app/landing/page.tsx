@@ -217,12 +217,12 @@ export default function LandingPage() {
                       <li>{formatTierValue(config.uploads)} uploads per day</li>
                       <li>{formatTierValue(config.tokens)} tokens per day</li>
                     </ul>
-                    <Button asChild className="mt-8 w-full rounded-2xl">
-                      <Link href={tier === 'free' ? '/login' : `/checkout?tier=${tier}`}>
-                        {tier === 'free' ? 'Start Free' : `Get ${config.label}`}
-                      </Link>
-                    </Button>
-                  </section>
+                  <Button asChild className="mt-8 w-full rounded-2xl">
+                    <Link href="/login">
+                      {tier === 'free' ? 'Start Free' : `Get ${config.label}`}
+                    </Link>
+                  </Button>
+                </section>
                 </ScrollReveal>
               )
             })}

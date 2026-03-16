@@ -29,6 +29,7 @@ function featureLines(tier: TierKey) {
 
 export default function PricingPage() {
   const [activeTier, setActiveTier] = useState<TierKey>('free')
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -51,6 +52,14 @@ export default function PricingPage() {
     return () => {
       cancelled = true
     }
+  }, [])
+
+  useEffect(() => {
+    // Check auth client-side via localStorage token presence
+    const token = typeof window !== 'undefined'
+      ? localStorage.getItem('qb_token')
+      : null
+    setIsAuthenticated(!!token)
   }, [])
 
   const orderedTiers: TierKey[] = ['free', 'pro', 'ultra']
@@ -126,7 +135,7 @@ export default function PricingPage() {
                       </Link>
                     ) : (
                       <Link
-                        href={`/checkout?tier=${tier}`}
+                        href={isAuthenticated ? `/checkout?tier=${tier}` : `/login?redirect=/checkout?tier=${tier}`}
                         className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
                       >
                         {tier === 'pro' ? 'Get Pro' : 'Get Ultra'}
