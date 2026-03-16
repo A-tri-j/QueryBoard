@@ -8,11 +8,11 @@ QueryBoard is a full-stack conversational business intelligence tool built for a
 
 ## Problem
 
-Business analysts and non-technical users need to explore data quickly, but traditional BI tools require SQL knowledge, dashboard setup, and manual chart configuration. This creates a bottleneck — insights are locked behind technical skills and slow tooling.
+Business analysts and non-technical users need to explore data quickly, but traditional BI tools require SQL knowledge, dashboard setup, and manual chart configuration. This creates a bottleneck — insights are locked behind technical skills and slow tooling. 
 
 ---
 
-## Solution
+##  Solution
 
 QueryBoard removes the technical barrier entirely. Users:
 
